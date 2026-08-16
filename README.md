@@ -1,14 +1,10 @@
 # Group members
-Dagim Derbe - CTC-3976-26(leader)
-Bekam Dawit - CTC-6256-26
-Daniel Worku - CTC-1453-26
-Ebisa Mitiku - CTC-064-26
-Desta Hailemariam - CTC-1641-26
-Desalegn Teresa - CTC-2097-26
-
-
-
-
+1- Dagim Derbe - CTC-3976-26(leader)
+2- Bekam Dawit - CTC-6256-26
+3- Daniel Worku - CTC-1453-26
+4- Ebisa Mitiku - CTC-064-26
+5- Desta Hailemariam - CTC-1641-26
+6- Desalegn Teresa - CTC-2097-26
 
 # BloodBank_hub
 
