@@ -1,3 +1,15 @@
+# Group members
+Dagim Derbe - CTC-3976-26(leader)
+Bekam Dawit - CTC-6256-26
+Daniel Worku - CTC-1453-26
+Ebisa Mitiku - CTC-064-26
+Desta Hailemariam - CTC-1641-26
+Desalegn Teresa - CTC-2097-26
+
+
+
+
+
 # BloodBank_hub
 
 BloodBank_hub is a secure, coordinated web application designed to manage the lifecycle of emergency blood supplies. In medical crises such as postpartum hemorrhage and trauma accidents, delays in securing blood directly impact survival rates. This platform coordinates six key user roles to establish a traceable, validated, and fast-response blood supply chain. It bridges the gap between hospitals, donation stations, testing laboratories, central warehouses, and voluntary blood donors.
