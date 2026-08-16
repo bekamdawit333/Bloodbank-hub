@@ -59,7 +59,7 @@ When a warehouse has zero stock of a critical, rare blood type, hospitals can tr
 *   **Frontend:** React (Vite), HTML5, CSS3, JavaScript.
 *   **Backend:** Node.js, Express (RESTful API).
 *   **Database:** PostgreSQL (relational tables, foreign key constraints, unique logs, check constraints).
-*   **Messaging:** SMSEthiopia API integration (wrapped and mocked for local development).
+*   **Messaging:** SMSEthiopia API integration (wrapped and mocked for local development) and Email integrated for               autentication when new users sign in.
 
 ---
 
