@@ -128,4 +128,44 @@ async function main() {
   });
 
   console.log("Seeded PostgreSQL FAYDA donor profiles.");
+
+  // 6. Seed Lab Database records (Patient Medical Profiles)
+  // This enables emergency lookups for seeded national IDs right away
+  await labDb.labMedicalRecord.create({
+    data: {
+      faydaId: "ET-001",
+      name: "Daniel worku",
+      phone: "0966393660",
+      bloodType: "A+",
+      diseases: "HIV: Negative, Syphilis: Negative, Hepatitis B: Negative",
+      hemoglobin: "14.8 g/dL",
+      platelets: "250,000 /mcL",
+      allergies: "None",
+      otherNotes: "Fit donor, clean test history.",
+      updatedAt: new Date(),
+    },
+  });
+
+  await labDb.labMedicalRecord.create({
+    data: {
+      faydaId: "ET-002",
+      name: "Marta Kebede",
+      phone: "+251912345678",
+      bloodType: "O-",
+      diseases: "HIV: Negative, Syphilis: Negative, Hepatitis B: Negative",
+      hemoglobin: "12.5 g/dL",
+      platelets: "300,000 /mcL",
+      allergies: "Penicillin",
+      otherNotes: "Universal donor. Clean tests.",
+      updatedAt: new Date(),
+    },
+  });
+
+  console.log("Seeded Lab Database records.");
+  console.log("Seeding completed successfully.");
 }
+
+main().catch((e) => {
+  console.error("Seeding error:", e);
+  process.exit(1);
+});
