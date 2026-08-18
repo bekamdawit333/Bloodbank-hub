@@ -1,1 +1,26 @@
-﻿
+﻿datasource db {
+  provider = "postgresql"
+  url      = env("LAB_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/lab-client"
+}
+
+model LabMedicalRecord {
+  id            String   @id @default(uuid())
+  faydaId       String   @unique
+  name          String
+  phone         String
+  bloodType     String
+  diseases      String
+  hemoglobin    String
+  platelets     String
+  allergies     String
+  otherNotes    String
+  updatedAt     DateTime @updatedAt
+
+  @@map("lab_medical_records")
+}
+
