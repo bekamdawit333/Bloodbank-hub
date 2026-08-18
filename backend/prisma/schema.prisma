@@ -1,4 +1,3 @@
-﻿
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -12,43 +11,42 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   password_hash String
-  role          String   // 'admin', 'station', 'laboratory', 'warehouse', 'hospital', 'donor'
+  role          String // 'admin', 'station', 'laboratory', 'warehouse', 'hospital', 'donor'
   status        String   @default("pending") // 'pending', 'approved', 'rejected'
   entity_name   String
   created_at    DateTime @default(now())
 
-
-  donorProfile            Donor?                   @relation("UserToDonor")
-  warehouseStock          WarehouseStock[]
-  hospitalRequests        HospitalRequest[]
-  announcements           Announcement[]
-  hospitalStock           HospitalStock[]
-  interRequestsSent       HospitalInterRequest[]   @relation("RequesterHospitals")
-  interRequestsReceived   HospitalInterRequest[]   @relation("ReceiverHospitals")
-  samplesCollected        BloodSample[]            @relation("StationSamples")
-  samplesTested           BloodSample[]            @relation("LabSamples")
-  hospitalSamples         BloodSample[]            @relation("HospitalSamples")
-  auditLogs               AuditLog[]
-  appointments            Appointment[]
-  patients                Patient[]
-  bloodOrders             BloodOrder[]
-  passwordResetRequests   PasswordResetRequest[]
+  donorProfile          Donor?                 @relation("UserToDonor")
+  warehouseStock        WarehouseStock[]
+  hospitalRequests      HospitalRequest[]
+  announcements         Announcement[]
+  hospitalStock         HospitalStock[]
+  interRequestsSent     HospitalInterRequest[] @relation("RequesterHospitals")
+  interRequestsReceived HospitalInterRequest[] @relation("ReceiverHospitals")
+  samplesCollected      BloodSample[]          @relation("StationSamples")
+  samplesTested         BloodSample[]          @relation("LabSamples")
+  hospitalSamples       BloodSample[]          @relation("HospitalSamples")
+  auditLogs             AuditLog[]
+  appointments          Appointment[]
+  patients              Patient[]
+  bloodOrders           BloodOrder[]
+  passwordResetRequests PasswordResetRequest[]
 
   @@map("users")
 }
 
 model Donor {
-  fayda_id           String        @id
+  fayda_id           String    @id
   name               String
-  phone              String        @unique
+  phone              String    @unique
   dob                DateTime
   gender             String
   address            String
   blood_type         String
   last_donation_date DateTime?
-  health_status      String        @default("unknown") // 'unknown', 'healthy', 'defective'
-  points             Int           @default(0)
-  user_id            String?       @unique
+  health_status      String    @default("unknown") // 'unknown', 'healthy', 'defective'
+  points             Int       @default(0)
+  user_id            String?   @unique
 
   // Relations
   user         User?         @relation("UserToDonor", fields: [user_id], references: [id], onDelete: SetNull)
@@ -88,7 +86,7 @@ model WarehouseStock {
   quantity     Int    @default(0)
 
   // Relations
-  warehouse User   @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+  warehouse User @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@unique([warehouse_id, blood_type])
   @@map("warehouse_stock")
@@ -103,7 +101,7 @@ model HospitalRequest {
   created_at   DateTime @default(now())
 
   // Relations
-  hospital    User        @relation(fields: [hospital_id], references: [id], onDelete: Cascade)
+  hospital    User         @relation(fields: [hospital_id], references: [id], onDelete: Cascade)
   bloodOrders BloodOrder[]
 
   @@map("hospital_requests")
@@ -113,7 +111,7 @@ model SentSmsLog {
   id              String   @id @default(uuid())
   phone           String
   blood_sample_id String
-  message_type    String   // 'initial', 'encouragement', 'warning'
+  message_type    String // 'initial', 'encouragement', 'warning'
   sent_at         DateTime @default(now())
 
   // Relations
@@ -144,7 +142,7 @@ model Announcement {
   warehouse_id     String
 
   // Relations
-  warehouse User      @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+  warehouse User @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@map("announcements")
 }
@@ -156,7 +154,7 @@ model HospitalStock {
   quantity    Int    @default(0)
 
   // Relations
-  hospital User   @relation(fields: [hospital_id], references: [id], onDelete: Cascade)
+  hospital User @relation(fields: [hospital_id], references: [id], onDelete: Cascade)
 
   @@unique([hospital_id, blood_type])
   @@map("hospital_stock")
@@ -172,50 +170,50 @@ model HospitalInterRequest {
   created_at   DateTime @default(now())
 
   // Relations
-  requester User     @relation("RequesterHospitals", fields: [requester_id], references: [id], onDelete: Cascade)
-  receiver  User?    @relation("ReceiverHospitals", fields: [receiver_id], references: [id], onDelete: Cascade)
+  requester User  @relation("RequesterHospitals", fields: [requester_id], references: [id], onDelete: Cascade)
+  receiver  User? @relation("ReceiverHospitals", fields: [receiver_id], references: [id], onDelete: Cascade)
 
   @@map("hospital_inter_requests")
 }
 
 model AuditLog {
-  id           String   @id @default(uuid())
-  user_id      String
-  action       String
-  details      String
-  ip_address   String?
-  created_at   DateTime @default(now())
+  id         String   @id @default(uuid())
+  user_id    String
+  action     String
+  details    String
+  ip_address String?
+  created_at DateTime @default(now())
 
   // Relations
-  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("audit_logs")
 }
 
 model Appointment {
-  id           String   @id @default(uuid())
-  donor_id     String
-  station_id   String
-  date_time    DateTime
-  status       String   @default("scheduled") // 'scheduled', 'completed', 'cancelled'
-  created_at   DateTime @default(now())
+  id         String   @id @default(uuid())
+  donor_id   String
+  station_id String
+  date_time  DateTime
+  status     String   @default("scheduled") // 'scheduled', 'completed', 'cancelled'
+  created_at DateTime @default(now())
 
   // Relations
-  donor        Donor    @relation(fields: [donor_id], references: [fayda_id], onDelete: Cascade)
-  station      User     @relation(fields: [station_id], references: [id], onDelete: Cascade)
+  donor   Donor @relation(fields: [donor_id], references: [fayda_id], onDelete: Cascade)
+  station User  @relation(fields: [station_id], references: [id], onDelete: Cascade)
 
   @@map("appointments")
 }
 
 model SmsQueue {
-  id           String   @id @default(uuid())
-  phone        String
-  message      String
-  status       String   @default("pending") // 'pending', 'sent', 'failed'
-  retry_count  Int      @default(0)
-  last_error   String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id          String   @id @default(uuid())
+  phone       String
+  message     String
+  status      String   @default("pending") // 'pending', 'sent', 'failed'
+  retry_count Int      @default(0)
+  last_error  String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   @@map("sms_queue")
 }
@@ -225,7 +223,7 @@ model Patient {
   hospital_id      String
   full_name        String
   age              Int
-  gender           String    // 'male', 'female', 'other'
+  gender           String // 'male', 'female', 'other'
   blood_type       String
   fayda_id         String?
   ward             String
@@ -244,17 +242,17 @@ model Patient {
 }
 
 model BloodOrder {
-  id              String    @id @default(uuid())
-  patient_id      String
-  hospital_id     String
-  blood_type      String
-  units_needed    Int
-  urgency         String    @default("routine") // 'routine', 'urgent', 'emergency'
-  status          String    @default("pending") // 'pending', 'requisition_placed', 'dispatched', 'transfused', 'cancelled'
-  notes           String?
-  requisition_id  String?
-  ordered_at      DateTime  @default(now())
-  transfused_at   DateTime?
+  id             String    @id @default(uuid())
+  patient_id     String
+  hospital_id    String
+  blood_type     String
+  units_needed   Int
+  urgency        String    @default("routine") // 'routine', 'urgent', 'emergency'
+  status         String    @default("pending") // 'pending', 'requisition_placed', 'dispatched', 'transfused', 'cancelled'
+  notes          String?
+  requisition_id String?
+  ordered_at     DateTime  @default(now())
+  transfused_at  DateTime?
 
   // Relations
   patient     Patient          @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -265,15 +263,15 @@ model BloodOrder {
 }
 
 model PasswordResetRequest {
-  id           String   @id @default(uuid())
-  user_id      String
-  email        String
-  role         String
-  entity_name  String
-  status       String   @default("pending") // 'pending', 'resolved'
-  created_at   DateTime @default(now())
+  id          String   @id @default(uuid())
+  user_id     String
+  email       String
+  role        String
+  entity_name String
+  status      String   @default("pending") // 'pending', 'resolved'
+  created_at  DateTime @default(now())
 
-  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("password_reset_requests")
 }
