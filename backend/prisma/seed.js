@@ -34,4 +34,98 @@ async function main() {
   });
 
   console.log("Seeded admin user.");
+
+  // 5. Seed FAYDA donors in PostgreSQL (mock national registry)
+  // These represent profile cards that can be pre-filled during donor registration
+  const donor1 = await mainDb.donor.create({
+    data: {
+      fayda_id: "ET-001",
+      name: "Daniel worku",
+      phone: "0966393660",
+      dob: new Date("1990-05-15"),
+      gender: "Male",
+      address: "Bole, Addis Ababa",
+      blood_type: "UNKNOWN",
+      last_donation_date: null,
+      health_status: "unknown",
+      points: 0,
+    },
+  });
+
+  const donor2 = await mainDb.donor.create({
+    data: {
+      fayda_id: "ET-002",
+      name: "Marta Kebede",
+      phone: "+251912345678",
+      dob: new Date("1995-08-20"),
+      gender: "Female",
+      address: "Kazanchis, Addis Ababa",
+      blood_type: "UNKNOWN",
+      last_donation_date: null,
+      health_status: "unknown",
+      points: 0,
+    },
+  });
+
+  const donor3 = await mainDb.donor.create({
+    data: {
+      fayda_id: "ET-003",
+      name: "Almaz Tolosa",
+      phone: "+251913456789",
+      dob: new Date("1988-12-02"),
+      gender: "Female",
+      address: "Hawassa",
+      blood_type: "UNKNOWN",
+      last_donation_date: null,
+      health_status: "unknown",
+      points: 0,
+    },
+  });
+
+  const donor4 = await mainDb.donor.create({
+    data: {
+      fayda_id: "ET-004",
+      name: "Bekele Lemma",
+      phone: "+251914567890",
+      dob: new Date("1982-03-30"),
+      gender: "Male",
+      address: "Adama",
+      blood_type: "UNKNOWN",
+      last_donation_date: null,
+      health_status: "unknown",
+      points: 0,
+    },
+  });
+
+  const donor5 = await mainDb.donor.create({
+    data: {
+      fayda_id: "ET-005",
+      name: "Adnan Abdulkadr",
+      phone: "+251985340573",
+      dob: new Date("1997-10-12"),
+      gender: "Male",
+      address: "Bahir Dar",
+      blood_type: "UNKNOWN",
+      last_donation_date: null,
+      health_status: "unknown",
+      points: 0,
+    },
+  });
+
+  const donor6 = await mainDb.donor.create({
+    data: {
+      fayda_id: "ET-006",
+      name: "Samuel Negash",
+      phone: "+251916789012",
+      dob: new Date("1992-06-18"),
+      gender: "Male",
+      address: "Mekelle",
+      blood_type: "UNKNOWN",
+      last_donation_date: null,
+      health_status: "unknown",
+      points: 0,
+    },
+  });
+
+  console.log("Seeded PostgreSQL FAYDA donor profiles.");
 }
