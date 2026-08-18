@@ -265,3 +265,181 @@ label {
 }
 
 
+
+/* Responsive Table */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--border-radius-sm);
+  border: var(--border-glass);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+th {
+  background: var(--bg-hover);
+  padding: 14px 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: var(--border-glass);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background: var(--bg-hover);
+}
+
+/* Grid Layouts */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .grid-3, .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Force all inline grid columns to stack vertically on small screens */
+  div[style*="grid"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* App layout resets for small mobile screens */
+  div[style*="display: flex"][style*="height: 100vh"] {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+  }
+  
+  aside {
+    width: 100% !important;
+    height: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 20px !important;
+  }
+  
+  main {
+    padding: 20px !important;
+    overflow-y: visible !important;
+  }
+  
+  header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 15px !important;
+  }
+  
+  header div {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+  
+  .glass-card form div[style*="display: grid"],
+  div[style*="display: grid"][style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+  
+  .btn {
+    flex-direction: row !important;
+    justify-content: center !important;
+  }
+  
+  select, input, button {
+    font-size: 16px !important;
+  }
+}
+
+
+.phone-mode,
+.phone-mode * {
+  /* Force multi-column grids to stack vertically */
+  grid-template-columns: 1fr !important;
+}
+
+.phone-mode div[style*="display: flex"][style*="height: 100vh"] {
+  flex-direction: column !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow-y: auto !important;
+}
+
+.phone-mode aside {
+  width: 100% !important;
+  height: auto !important;
+  border-right: none !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 20px !important;
+}
+
+.phone-mode main {
+  padding: 20px !important;
+  overflow-y: visible !important;
+}
+
+.phone-mode header {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 15px !important;
+}
+
+.phone-mode header div {
+  width: 100% !important;
+  justify-content: space-between !important;
+}
+
+.phone-mode .glass-card form div[style*="display: grid"],
+.phone-mode div[style*="display: grid"][style*="gridTemplateColumns"] {
+  grid-template-columns: 1fr !important;
+  gap: 15px !important;
+}
+
+.phone-mode .btn {
+  flex-direction: row !important;
+  justify-content: center !important;
+}
+
+.phone-mode select,
+.phone-mode input,
+.phone-mode button {
+  font-size: 16px !important;
+}
+
