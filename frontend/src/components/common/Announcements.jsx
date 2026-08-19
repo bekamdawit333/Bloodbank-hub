@@ -1,4 +1,4 @@
-﻿
+
 import React from 'react';
 import { Megaphone, Calendar, MapPin, Sparkles } from 'lucide-react';
 
