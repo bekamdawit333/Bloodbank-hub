@@ -61,3 +61,8 @@ async function getUsers(req, res) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update user status' });
   }
+      await logAction(
+      req.user.id,
+      `USER_REGISTRATION_${status.toUpperCase()}`,
+      `Updated registration status for user ${user.email} (${user.role}) to: ${status}.`
+    );
