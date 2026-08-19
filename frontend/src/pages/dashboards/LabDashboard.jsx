@@ -44,4 +44,60 @@ export default function LabDashboard() {
   useEffect(() => {
     loadData();
   }, []);
+    const handleSelectSample = (sample) => {
+    setSelectedSample(sample);
+    setTestStatus('validated');
+    setHealthNotes('');
+    setHemoglobin('14.5 g/dL');
+    setPlatelets('250,000 /mcL');
+    setAllergies('None');
+    setBloodType(sample.blood_type === 'UNKNOWN' ? 'O+' : sample.blood_type);
+    setSelectedDiseases([]);
+  };
+
+  const handleDiseaseToggle = (disease) => {
+    setSelectedDiseases(prev => 
+      prev.includes(disease) 
+        ? prev.filter(d => d !== disease) 
+        : [...prev, disease]
+    );
+  };
+
+  const handleTestSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedSample) return;
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    const finalDiseases = testStatus === 'validated'
+      ? 'HIV: Negative, Syphilis: Negative, Hepatitis: Negative'
+      : selectedDiseases.length > 0 
+        ? selectedDiseases.map(d => `${d}: Positive`).join(', ') 
+        : 'Abnormal clinical markers';
+
+    const payload = {
+      status: testStatus,
+      health_notes: healthNotes,
+      warehouse_id: testStatus === 'validated' ? warehouseId : undefined,
+      hemoglobin,
+      platelets,
+      allergies,
+      diseases: finalDiseases,
+      blood_type: bloodType
+    };
+
+    try {
+      const data = await api.lab.submitTestResult(selectedSample.id, payload);
+      setSuccess(data.message);
+      setSelectedSample(null);
+      // Reload pending logs
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to submit test findings.');
+    } finally {
+      setLoading(false);
+    }
+  };
 }
