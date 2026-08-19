@@ -48,3 +48,26 @@ async function getPendingSamples(req, res) {
     res.status(500).json({ error: 'Failed to fetch warehouses' });
   }
 }
+async function submitTestResult(req, res) {
+  const { id } = req.params;
+  const {
+    status,
+    warehouse_id,
+    health_notes,
+    hemoglobin,
+    platelets,
+    allergies,
+    diseases,
+    blood_type
+  } = req.body;
+
+  if (!['validated', 'discarded'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid validation status' });
+  }
+  if (status === 'validated' && !warehouse_id) {
+    return res.status(400).json({ error: 'Destination Warehouse is required for validated blood' });
+  }
+  if (status === 'validated' && (!blood_type || blood_type === 'UNKNOWN')) {
+    return res.status(400).json({ error: 'A valid tested blood type is required to validate the sample' });
+  }
+}
