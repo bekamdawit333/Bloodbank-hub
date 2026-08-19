@@ -37,3 +37,63 @@ async function getWarehouseStockLevels(req, res) {
     res.status(500).json({ error: "Failed to fetch warehouse stock levels" });
   }
 }
+
+// Submit a blood requisition order to the central blood bank
+async function submitRequisition(req, res) {
+  const { blood_type, units_needed } = req.body;
+  if (!blood_type || !units_needed) {
+    return res
+      .status(400)
+      .json({ error: "Blood Type and Units needed are required" });
+  }
+
+  try {
+    const order = await mainDb.hospitalRequest.create({
+      data: {
+        hospital_id: req.user.id,
+        blood_type,
+        units_needed: parseInt(units_needed),
+        status: "pending",
+      },
+    });
+
+    // Emit real-time WebSocket notification
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("requisition_updated", {
+        type: "CREATE",
+        request: {
+          id: order.id,
+          hospital_name: req.user.entity_name || "Hospital",
+          blood_type: order.blood_type,
+          units_needed: order.units_needed,
+          created_at: order.created_at,
+        },
+      });
+    }
+
+    res
+      .status(201)
+      .json({
+        message: "Blood requisition submitted to Central Inventory",
+        order,
+      });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to submit blood request" });
+  }
+}
+
+// Get requisition logs submitted by this hospital
+async function getRequisitions(req, res) {
+  try {
+    const requests = await mainDb.hospitalRequest.findMany({
+      where: { hospital_id: req.user.id },
+      orderBy: { created_at: "desc" },
+    });
+    res.json(requests);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch requisitions log" });
+  }
+}
