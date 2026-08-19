@@ -66,3 +66,11 @@ async function getUsers(req, res) {
       `USER_REGISTRATION_${status.toUpperCase()}`,
       `Updated registration status for user ${user.email} (${user.role}) to: ${status}.`
     );
+    async function getAdminAnalytics(req, res) {
+  try {
+    // Query logic goes here
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve administrative analytics' });
+  }
+}
