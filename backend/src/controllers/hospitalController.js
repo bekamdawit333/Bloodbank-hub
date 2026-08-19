@@ -173,3 +173,49 @@ async function getInterHospitalRequests(req, res) {
       .json({ error: "Failed to retrieve inter-hospital request board" });
   }
 }
+// Submit a hospital-to-hospital blood request
+async function createInterHospitalRequest(req, res) {
+  const { blood_type, units_needed, receiver_id } = req.body;
+
+  if (!blood_type || !units_needed) {
+    return res
+      .status(400)
+      .json({ error: "Blood Type and Units needed are required" });
+  }
+
+  try {
+    const interRequest = await mainDb.hospitalInterRequest.create({
+      data: {
+        requester_id: req.user.id,
+        receiver_id: receiver_id || null, // null means broadcasted to all hospitals
+        blood_type,
+        units_needed: parseInt(units_needed),
+        status: "pending",
+      },
+    });
+
+    // Emit real-time WebSocket notification
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("h2h_updated", {
+        type: "CREATE",
+        request: {
+          id: interRequest.id,
+          requester_id: interRequest.requester_id,
+          requester_name: req.user.entity_name,
+          blood_type: interRequest.blood_type,
+          units_needed: interRequest.units_needed,
+          created_at: interRequest.created_at,
+        },
+      });
+    }
+
+    res.status(201).json({
+      message: "Inter-hospital request posted successfully",
+      request: interRequest,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to post inter-hospital request" });
+  }
+}
