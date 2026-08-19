@@ -237,12 +237,10 @@ async function registerComplete(req, res) {
         where: { email },
       });
       if (!record || !record.verified) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Email has not been verified yet. Run verification step first.",
-          });
+        return res.status(400).json({
+          error:
+            "Email has not been verified yet. Run verification step first.",
+        });
       }
     }
 
@@ -340,5 +338,67 @@ async function registerComplete(req, res) {
     res
       .status(500)
       .json({ error: "Server error during registration completion" });
+  }
+}
+
+// 4. Login
+async function login(req, res) {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    const user = await mainDb.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
+    if (user.status !== "approved") {
+      return res
+        .status(403)
+        .json({
+          error: `Your account status is currently ${user.status}. Please contact an administrator.`,
+        });
+    }
+
+    // Attach donor profile ID/fayda_id if donor
+    let donorProfile = null;
+    if (user.role === "donor") {
+      donorProfile = await mainDb.donor.findUnique({
+        where: { user_id: user.id },
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        entity_name: user.entity_name,
+        fayda_id: donorProfile ? donorProfile.fayda_id : null,
+      },
+      JWT_SECRET,
+      { expiresIn: "24h" },
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        entity_name: user.entity_name,
+        donor: donorProfile,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during login" });
   }
 }
