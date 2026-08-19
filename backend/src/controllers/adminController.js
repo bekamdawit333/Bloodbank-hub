@@ -112,3 +112,16 @@ async function getUsers(req, res) {
       hospitalRequests: hospitalRequestsData,
       stationCollections: stationCollectionsData
     });
+    async function triggerThreeMonthReminders(req, res) {
+  try {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const donors = await mainDb.donor.findMany({
+      where: {
+        last_donation_date: { lte: ninetyDaysAgo }
+      }
+    });
+
+    let sentCount = 0;
+    const details = [];
