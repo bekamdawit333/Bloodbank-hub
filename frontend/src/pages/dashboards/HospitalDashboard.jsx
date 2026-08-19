@@ -148,4 +148,122 @@ export default function HospitalDashboard({ tab, setTab }) {
       socket.disconnect();
     };
   }, []);
+    const handleCreateRequisition = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.hospital.createRequisition(reqBloodType, reqUnits);
+      setSuccess('Central warehouse requisition order placed successfully!');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to request stock from warehouse.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateInterRequest = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.hospital.createInterHospitalRequest(interBloodType, interUnits);
+      setSuccess('Emergency inter-hospital broadcast alert published successfully!');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to publish emergency request.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFulfillInterRequest = async (requestId) => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.hospital.fulfillInterHospitalRequest(requestId);
+      setSuccess('Direct inter-hospital stock transfer complete. Inventory successfully dispatched.');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to fulfill inter-hospital transfer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmergencyPatientLookup = async (e) => {
+    e.preventDefault();
+    if (!lookupFaydaId) return;
+
+    setLoading(true);
+    setLookupError(null);
+    setPatientRecord(null);
+    setLookupSearched(false);
+
+    try {
+      const data = await api.hospital.emergencyPatientLookup(lookupFaydaId);
+      setPatientRecord(data);
+      setLookupSearched(true);
+    } catch (err) {
+      setLookupError(err.message || 'Patient clinical history not found in laboratory database.');
+      setLookupSearched(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      
+      {/* Real-Time WebSocket Alerts */}
+      {alerts.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {alerts.map(alert => (
+            <div 
+              key={alert.id} 
+              style={{ 
+                background: alert.message.includes('✅') ? 'rgba(6,214,160,0.1)' : 'rgba(239,71,111,0.1)', 
+                color: alert.message.includes('✅') ? '#06d6a0' : '#ef476f', 
+                padding: '12px 18px', 
+                borderRadius: '8px', 
+                border: alert.message.includes('✅') ? '1px solid rgba(6,214,160,0.2)' : '1px solid rgba(239,71,111,0.2)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                animation: 'slideIn 0.3s ease-out'
+              }}
+            >
+              <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{alert.message}</span>
+              <button 
+                onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
+                style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold', padding: '0 5px' }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {error && (
+        <div className="glass-card" style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '16px', border: '1px solid rgba(239,35,60,0.2)' }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="glass-card" style={{ background: 'rgba(58,134,255,0.1)', color: '#3a86ff', padding: '16px', border: '1px solid rgba(58,134,255,0.2)' }}>
+          {success}
+        </div>
+      )}
+      </div>
+      );
 }
