@@ -219,3 +219,129 @@ async function createInterHospitalRequest(req, res) {
     res.status(500).json({ error: "Failed to post inter-hospital request" });
   }
 }
+// Fulfill inter-hospital request (transfers blood stock directly between hospitals)
+async function fulfillInterHospitalRequest(req, res) {
+  const { id } = req.params;
+
+  try {
+    const request = await mainDb.hospitalInterRequest.findUnique({
+      where: { id },
+    });
+
+    if (!request) {
+      return res
+        .status(404)
+        .json({ error: "Inter-hospital request not found" });
+    }
+
+    if (request.status !== "pending") {
+      return res
+        .status(400)
+        .json({ error: `Request has already been ${request.status}` });
+    }
+
+    // Verify fulfiller has enough stock
+    const fulfillerStock = await mainDb.hospitalStock.findUnique({
+      where: {
+        hospital_id_blood_type: {
+          hospital_id: req.user.id,
+          blood_type: request.blood_type,
+        },
+      },
+    });
+
+    const availableQty = fulfillerStock ? fulfillerStock.quantity : 0;
+    if (availableQty < request.units_needed) {
+      return res.status(400).json({
+        error: `Insufficient inventory in your hospital. Available: ${availableQty} units of ${request.blood_type}`,
+      });
+    }
+
+    // Execute direct transfer transaction
+    await mainDb.$transaction(async (tx) => {
+      // 1. Decrement fulfiller stock
+      await tx.hospitalStock.update({
+        where: {
+          hospital_id_blood_type: {
+            hospital_id: req.user.id,
+            blood_type: request.blood_type,
+          },
+        },
+        data: {
+          quantity: { decrement: request.units_needed },
+        },
+      });
+
+      // 2. Increment requester stock
+      await tx.hospitalStock.upsert({
+        where: {
+          hospital_id_blood_type: {
+            hospital_id: request.requester_id,
+            blood_type: request.blood_type,
+          },
+        },
+        update: {
+          quantity: { increment: request.units_needed },
+        },
+        create: {
+          hospital_id: request.requester_id,
+          blood_type: request.blood_type,
+          quantity: request.units_needed,
+        },
+      });
+
+      // Find oldest samples of the requested blood type currently in the fulfilling hospital
+      const transferSamples = await tx.bloodSample.findMany({
+        where: {
+          blood_type: request.blood_type,
+          status: "validated",
+          hospital_id: req.user.id,
+        },
+        orderBy: {
+          collected_at: "asc",
+        },
+        take: request.units_needed,
+      });
+
+      if (transferSamples.length > 0) {
+        const sampleIds = transferSamples.map((s) => s.id);
+        await tx.bloodSample.updateMany({
+          where: {
+            id: { in: sampleIds },
+          },
+          data: {
+            hospital_id: request.requester_id,
+          },
+        });
+      }
+
+      // 3. Mark request as fulfilled and log the fulfiller id
+      await tx.hospitalInterRequest.update({
+        where: { id },
+        data: {
+          status: "fulfilled",
+          receiver_id: req.user.id,
+        },
+      });
+    });
+
+    // Emit real-time WebSocket notification
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("h2h_updated", {
+        type: "FULFILL",
+        requestId: id,
+        fulfiller_name: req.user.entity_name,
+      });
+    }
+
+    res.json({
+      message: "Inter-hospital blood transfer successful. Inventory updated.",
+    });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "Failed to process inter-hospital fulfillment" });
+  }
+}
