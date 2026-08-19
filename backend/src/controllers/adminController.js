@@ -11,3 +11,10 @@ async function getUsers(req, res) {
     res.status(500).json({ error: 'Failed to retrieve system users' });
   }
 }
+
+    const users = await mainDb.user.findMany({
+      where: {
+        NOT: { role: 'admin' }
+      }
+    });
+    res.json(users);
