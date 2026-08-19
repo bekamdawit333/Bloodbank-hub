@@ -72,12 +72,10 @@ async function submitRequisition(req, res) {
       });
     }
 
-    res
-      .status(201)
-      .json({
-        message: "Blood requisition submitted to Central Inventory",
-        order,
-      });
+    res.status(201).json({
+      message: "Blood requisition submitted to Central Inventory",
+      order,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to submit blood request" });
@@ -95,5 +93,55 @@ async function getRequisitions(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch requisitions log" });
+  }
+}
+
+// Emergency patient medical history lookup: Queries the independent Laboratory Database (PostgreSQL)
+async function emergencyPatientLookup(req, res) {
+  const { fayda_id } = req.params;
+
+  try {
+    // 1. Query the separate Laboratory database (PostgreSQL) for screening findings
+    const labRecord = await labDb.labMedicalRecord.findUnique({
+      where: { faydaId: fayda_id },
+    });
+
+    if (!labRecord) {
+      return res.status(404).json({
+        error:
+          "No medical history found in Laboratory database for this patient FAYDA ID.",
+      });
+    }
+
+    // 2. Fetch demographic information from the main PostgreSQL database if available
+    const donorProfile = await mainDb.donor.findUnique({
+      where: { fayda_id },
+    });
+
+    res.json({
+      faydaId: fayda_id,
+      name: labRecord.name,
+      phone: labRecord.phone,
+      bloodType: labRecord.bloodType,
+      medicalHistory: {
+        diseases: labRecord.diseases,
+        hemoglobin: labRecord.hemoglobin,
+        platelets: labRecord.platelets,
+        allergies: labRecord.allergies,
+        lastTested: labRecord.updatedAt,
+        notes: labRecord.otherNotes,
+      },
+      demographics: donorProfile
+        ? {
+            gender: donorProfile.gender,
+            dob: donorProfile.dob,
+            address: donorProfile.address,
+            healthStatus: donorProfile.health_status,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to query laboratory database" });
   }
 }
