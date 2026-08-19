@@ -643,6 +643,133 @@ export default function HospitalDashboard({ tab, setTab }) {
 
         </div>
       )}
-      </div>
-      );
+       {tab === 'hms' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* HMS Header Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Stethoscope size={22} color="var(--primary)" />
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Patients & Blood Orders</h2>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Admit patients, issue blood orders, and track transfusions end-to-end.</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowAdmitForm(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontSize: '0.85rem' }}>
+                <UserPlus size={15} /> Admit Patient
+              </button>
+              <button onClick={() => setShowOrderForm(true)} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontSize: '0.85rem', background: 'rgba(0,0,0,0.04)', border: '1px solid var(--border-color)' }}>
+                <ClipboardList size={15} /> New Blood Order
+              </button>
+              <button onClick={loadHmsData} className="btn" style={{ padding: '8px 12px', background: 'transparent', border: '1px solid var(--border-color)' }}>
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Admit Patient Form */}
+          {showAdmitForm && (
+            <div className="glass-card" style={{ border: '1px solid rgba(217,4,41,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}><UserPlus size={18} color="var(--primary)" /> Admit New Patient</h3>
+                <button onClick={() => setShowAdmitForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={18} /></button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                {[['full_name','Full Name','text'],['age','Age','number'],['ward','Ward','text'],['bed_number','Bed Number','text'],['fayda_id','FAYDA ID (optional)','text'],['diagnosis','Diagnosis (optional)','text']].map(([key, label, type]) => (
+                  <div key={key}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>{label}</label>
+                    <input type={type} className="form-input" value={admitForm[key]} onChange={e => setAdmitForm(p => ({ ...p, [key]: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                  </div>
+                ))}
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Gender</label>
+                  <select className="form-input" value={admitForm.gender} onChange={e => setAdmitForm(p => ({ ...p, gender: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                    {['male','female','other'].map(g => <option key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Blood Type</label>
+                  <select className="form-input" value={admitForm.blood_type} onChange={e => setAdmitForm(p => ({ ...p, blood_type: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                    {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button onClick={async () => {
+                if (!admitForm.full_name || !admitForm.age || !admitForm.ward || !admitForm.bed_number) return;
+                try {
+                  await api.hms.admitPatient(admitForm);
+                  setAdmitForm({ full_name: '', age: '', gender: 'male', blood_type: 'O+', fayda_id: '', ward: '', bed_number: '', diagnosis: '' });
+                  setShowAdmitForm(false);
+                  loadHmsData();
+                } catch (err) { alert(err.message); }
+              }} className="btn btn-primary" style={{ marginTop: '16px', padding: '8px 20px', fontSize: '0.85rem' }}>Admit Patient</button>
+            </div>
+          )}
+
+          {/* New Blood Order Form */}
+          {showOrderForm && (
+            <div className="glass-card" style={{ border: '1px solid rgba(59,130,246,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}><ClipboardList size={18} color="#3b82f6" /> New Blood Order</h3>
+                <button onClick={() => setShowOrderForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={18} /></button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Patient</label>
+                  <select className="form-input" value={orderForm.patient_id} onChange={e => setOrderForm(p => ({ ...p, patient_id: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                    <option value="">-- Select admitted patient --</option>
+                    {hmsPatients.filter(p => p.admission_status === 'admitted').map(p => (
+                      <option key={p.id} value={p.id}>{p.full_name} — Ward {p.ward}, Bed {p.bed_number}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Blood Type</label>
+                  <select className="form-input" value={orderForm.blood_type} onChange={e => setOrderForm(p => ({ ...p, blood_type: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                    {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Units Needed</label>
+                  <input type="number" min="1" className="form-input" value={orderForm.units_needed} onChange={e => setOrderForm(p => ({ ...p, units_needed: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Urgency</label>
+                  <select className="form-input" value={orderForm.urgency} onChange={e => setOrderForm(p => ({ ...p, urgency: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                    <option value="routine">Routine</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="emergency">Emergency</option>
+                  </select>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Clinical Notes (optional)</label>
+                  <input type="text" className="form-input" value={orderForm.notes} onChange={e => setOrderForm(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. Pre-operative surgery prep" style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <button onClick={async () => {
+                if (!orderForm.patient_id || !orderForm.blood_type || !orderForm.units_needed) return;
+                try {
+                  const result = await api.hms.createBloodOrder(orderForm);
+                  setOrderFulfillmentMsg(result._message || null);
+                  setOrderForm({ patient_id: '', blood_type: 'O+', units_needed: 1, urgency: 'routine', notes: '' });
+                  setShowOrderForm(false);
+                  loadHmsData();
+                } catch (err) { alert(err.message); }
+              }} className="btn btn-primary" style={{ marginTop: '16px', padding: '8px 20px', fontSize: '0.85rem', background: '#3b82f6' }}>Place Blood Order</button>
+            </div>
+          )}
+          {/* Fulfillment Notification Banner */}
+          {orderFulfillmentMsg && (
+            <div style={{ padding: '12px 16px', borderRadius: '8px', background: orderFulfillmentMsg.startsWith('✅') ? 'rgba(6,214,160,0.1)' : orderFulfillmentMsg.startsWith('⚠️') ? 'rgba(247,127,0,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${orderFulfillmentMsg.startsWith('✅') ? '#06d6a0' : orderFulfillmentMsg.startsWith('⚠️') ? '#f77f00' : '#3b82f6'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{orderFulfillmentMsg}</span>
+              <button onClick={() => setOrderFulfillmentMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', flexShrink: 0 }}><X size={15} /></button>
+            </div>
+          )}
+         
+        </div>   
+      )}        
+
+    </div>       
+  );
 }
