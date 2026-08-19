@@ -150,3 +150,8 @@ async function submitTestResult(req, res) {
         otherNotes: health_notes || 'Routine screening, sample tested.'
       }
     });
+        let smsMessage = status === 'validated'
+      ? `Thank you, ${sample.donor.name}! Your blood screening results are complete. Your blood type is ${finalBloodType}. You have no health issues, and your blood donation is safe and ready. - Blood Bank Hub`
+      : `Dear ${sample.donor.name}, your blood screening results are complete. Your blood type was tested as ${finalBloodType}. The test has indicated some health complications. Please visit our laboratory. - Blood Bank Hub`;
+
+    const smsResult = await sendSMS(sample.donor.phone, smsMessage, id, status === 'validated' ? 'encouragement' : 'warning');
