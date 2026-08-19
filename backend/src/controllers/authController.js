@@ -121,3 +121,89 @@ async function sendForgotPasswordEmail(toEmail, code) {
     console.error("[Brevo Email Send Error]:", err.message);
   }
 }
+
+// 1. Request verification: enter email -> sends 6-digit code
+async function registerVerifyEmail(req, res) {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    // Check if user already exists
+    const userExists = await mainDb.user.findUnique({ where: { email } });
+    if (userExists) {
+      return res.status(400).json({ error: "Email is already registered" });
+    }
+
+    // Generate 6-digit verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+    // Save code to database (upsert if they retry)
+    await mainDb.emailVerification.upsert({
+      where: { email },
+      update: { code, expires_at: expiresAt, verified: false },
+      create: { email, code, expires_at: expiresAt, verified: false },
+    });
+
+    // Send transactional email via Brevo
+    await sendBrevoEmail(email, code);
+
+    // Also fallback to print in server console log for debug
+    console.log(`\n======================================================`);
+    console.log(`[EMAIL SYSTEM VERIFICATION MOCK]`);
+    console.log(`To: ${email}`);
+    console.log(`Verification Code: ${code}`);
+    console.log(`Expires in: 10 minutes`);
+    console.log(`======================================================\n`);
+
+    res.json({
+      message: "Verification code sent to email successfully.",
+      code, // return in response for easy testing/automated scripts
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during verification request" });
+  }
+}
+
+// 2. Verify code
+async function verifyCode(req, res) {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    return res
+      .status(400)
+      .json({ error: "Email and verification code are required" });
+  }
+
+  try {
+    const record = await mainDb.emailVerification.findUnique({
+      where: { email },
+    });
+    if (!record) {
+      return res
+        .status(400)
+        .json({ error: "No verification request found for this email" });
+    }
+
+    if (record.code !== code) {
+      return res.status(400).json({ error: "Invalid verification code" });
+    }
+
+    if (new Date() > record.expires_at) {
+      return res.status(400).json({ error: "Verification code has expired" });
+    }
+
+    // Update verified status
+    await mainDb.emailVerification.update({
+      where: { email },
+      data: { verified: true },
+    });
+
+    res.json({ message: "Email verified successfully", verified: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during code verification" });
+  }
+}
