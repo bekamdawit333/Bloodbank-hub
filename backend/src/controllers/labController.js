@@ -30,4 +30,21 @@ async function getPendingSamples(req, res) {
     }));
 
     res.json(formatted);
-    
+    async function getWarehouses(req, res) {
+  try {
+    const warehouses = await mainDb.user.findMany({
+      where: {
+        role: 'warehouse',
+        status: 'approved'
+      },
+      select: {
+        id: true,
+        entity_name: true
+      }
+    });
+    res.json(warehouses);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch warehouses' });
+  }
+}
