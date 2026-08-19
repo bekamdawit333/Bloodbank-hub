@@ -345,3 +345,52 @@ async function fulfillInterHospitalRequest(req, res) {
       .json({ error: "Failed to process inter-hospital fulfillment" });
   }
 }
+
+// List other approved hospitals (excluding self)
+async function getHospitalList(req, res) {
+  try {
+    const hospitals = await mainDb.user.findMany({
+      where: {
+        role: "hospital",
+        status: "approved",
+        NOT: { id: req.user.id },
+      },
+      select: {
+        id: true,
+        entity_name: true,
+      },
+    });
+    res.json(hospitals);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to retrieve hospitals list" });
+  }
+}
+
+async function getExpiringBags(req, res) {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyFiveDaysAgo = new Date();
+    thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+    const expiring = await mainDb.bloodSample.findMany({
+      where: {
+        status: "validated",
+        hospital_id: req.user.id,
+        collected_at: {
+          lte: thirtyDaysAgo,
+          gte: thirtyFiveDaysAgo,
+        },
+      },
+      orderBy: { collected_at: "asc" },
+    });
+
+    res.json(expiring);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve expiring hospital blood bags" });
+  }
+}
