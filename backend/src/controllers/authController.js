@@ -590,3 +590,14 @@ async function resetPasswordDonor(req, res) {
     res.status(500).json({ error: "Server error during password reset." });
   }
 }
+
+module.exports = {
+  registerVerifyEmail,
+  verifyCode,
+  registerComplete,
+  login,
+  getProfile,
+  faydaLookup,
+  forgotPassword,
+  resetPasswordDonor,
+};
