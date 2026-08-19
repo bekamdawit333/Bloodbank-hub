@@ -360,11 +360,9 @@ async function login(req, res) {
     }
 
     if (user.status !== "approved") {
-      return res
-        .status(403)
-        .json({
-          error: `Your account status is currently ${user.status}. Please contact an administrator.`,
-        });
+      return res.status(403).json({
+        error: `Your account status is currently ${user.status}. Please contact an administrator.`,
+      });
     }
 
     // Attach donor profile ID/fayda_id if donor
@@ -400,5 +398,74 @@ async function login(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error during login" });
+  }
+}
+// 5. Get current profile
+async function getProfile(req, res) {
+  try {
+    const user = await mainDb.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        entity_name: true,
+        created_at: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    let donorProfile = null;
+    if (user.role === "donor") {
+      donorProfile = await mainDb.donor.findUnique({
+        where: { user_id: user.id },
+      });
+    }
+
+    res.json({
+      user: {
+        ...user,
+        donor: donorProfile,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error retrieving profile" });
+  }
+}
+
+// 6. FAYDA ID Lookup for registration demographics pre-population
+async function faydaLookup(req, res) {
+  const { faydaId } = req.params;
+  try {
+    const donor = await mainDb.donor.findUnique({
+      where: { fayda_id: faydaId },
+    });
+    if (!donor) {
+      return res
+        .status(404)
+        .json({
+          error:
+            "FAYDA National ID not found. Please fill in details manually.",
+        });
+    }
+    // Check if donor is already linked to a user account
+    if (donor.user_id) {
+      return res
+        .status(400)
+        .json({
+          error: "This FAYDA ID is already linked to an existing user account.",
+        });
+    }
+    res.json(donor);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "Server error during FAYDA profile retrieval." });
   }
 }
