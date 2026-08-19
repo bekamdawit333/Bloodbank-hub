@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Heart, Gift } from 'lucide-react';
 import { api } from '../../services/api';
+import Leaderboard from '../../components/common/Leaderboard';
+import Announcements from '../../components/common/Announcements';
 
 export default function DonorDashboard({ activeTab, setActiveTab }) {
   const [data, setData] = useState(null);
@@ -34,7 +36,7 @@ export default function DonorDashboard({ activeTab, setActiveTab }) {
     );
   }
 
-  const { donor } = data;
+  const { donor, history, leaderboard, announcements } = data;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -71,6 +73,59 @@ export default function DonorDashboard({ activeTab, setActiveTab }) {
           </p>
         </div>
 
+      </div>
+
+      {/* Tab contents */}
+      <div className="animate-fade-in">
+        {activeTab === 'history' && (
+          <div className="glass-card">
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Donation Record Book</h3>
+            {history.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>You haven't logged any donations in this portal yet.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Donation Date</th>
+                      <th>Blood Type</th>
+                      <th>Workstation Station</th>
+                      <th>Screening Status</th>
+                      <th>Lab Clinical Findings</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map(h => (
+                      <tr key={h.id}>
+                        <td style={{ fontWeight: 600 }}>{new Date(h.collected_at).toLocaleDateString()}</td>
+                        <td>
+                          <span className="badge-blood-type">{h.blood_type}</span>
+                        </td>
+                        <td>{h.station_name}</td>
+                        <td>
+                          <span className={`badge badge-${h.status}`}>
+                            {h.status}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.85rem', color: h.status === 'discarded' ? '#ef233c' : 'var(--text-secondary)' }}>
+                          {h.health_notes || 'Pending screening check'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'announcements' && (
+          <Announcements data={announcements} />
+        )}
+
+        {activeTab === 'leaderboard' && (
+          <Leaderboard data={leaderboard} />
+        )}
       </div>
 
     </div>
