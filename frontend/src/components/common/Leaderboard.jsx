@@ -1,4 +1,5 @@
-﻿import React from 'react';
+
+import React from 'react';
 import { Award, Heart } from 'lucide-react';
 
 export default function Leaderboard({ data }) {
@@ -22,6 +23,7 @@ export default function Leaderboard({ data }) {
         return <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{rank}</span>;
     }
   };
+
   return (
     <div className="glass-card animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
