@@ -195,14 +195,39 @@ export default function Analytics({ hospitalRequests = [], stationCollections = 
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-      <div className="glass-card">
-        <h3>Hospital Request Load</h3>
-        {renderBarChart()}
+      
+      {/* Hospital requests analytics */}
+      <div className="glass-card animate-fade-in" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <BarChart3 size={20} color="var(--primary)" />
+            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Hospital Request Load</h3>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '20px' }}>
+            Shows the total blood bags requested by each hospital. Highlights areas in critical need.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '220px' }}>
+          {renderBarChart()}
+        </div>
       </div>
-      <div className="glass-card">
-        <h3>Station Collection Share</h3>
-        {renderDonutChart()}
+
+      {/* Station collections analytics */}
+      <div className="glass-card animate-fade-in" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <PieChart size={20} color="var(--primary)" />
+            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Station Collection Share</h3>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '20px' }}>
+            Illustrates the distribution of collections across donation stations to help assess drive performance.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '220px' }}>
+          {renderDonutChart()}
+        </div>
       </div>
+
     </div>
   );
 }
