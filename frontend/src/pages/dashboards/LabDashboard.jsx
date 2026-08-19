@@ -172,7 +172,188 @@ export default function LabDashboard() {
           </div>
         )}
       </div>
+       {/* SCREENING FORM VIEW */}
+      {selectedSample && (
+        <div className="glass-card animate-fade-in" style={{ borderTop: '4px solid var(--primary)' }}>
+          <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Clinical Screening Form</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
+            Running tests for: <strong>{selectedSample.donor_name}</strong> (Type: <span className="badge-blood-type" style={{ verticalAlign: 'middle' }}>{selectedSample.blood_type}</span>)
+          </p>
+
+          <form onSubmit={handleTestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: testStatus === 'validated' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Screening Result
+                </label>
+                <select 
+                  value={testStatus} 
+                  onChange={(e) => setTestStatus(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="validated">Safe (Validate Sample)</option>
+                  <option value="discarded">Defective (Discard Sample)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Verified Blood Type
+                </label>
+                <select 
+                  value={bloodType} 
+                  onChange={(e) => setBloodType(e.target.value)}
+                  style={{ width: '100%' }}
+                  required
+                >
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+
+              {testStatus === 'validated' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    Route to Warehouse Inventory
+                  </label>
+                  <select 
+                    value={warehouseId} 
+                    onChange={(e) => setWarehouseId(e.target.value)}
+                    required
+                    style={{ width: '100%' }}
+                  >
+                    {warehouses.map(w => (
+                      <option key={w.id} value={w.id}>{w.entity_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Donor Vital Signs & Disease Test Details (Logged directly to Lab Separate DB) */}
+            <div style={{ border: '1px solid rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', background: 'rgba(255,255,255,0.01)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                <ShieldCheck size={16} /> Clinical Vitals & Lab Finding database Records
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
+                This clinical information is written to the **separate Laboratory database** for emergency hospital retrieval.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Hemoglobin Value
+                  </label>
+                  <input
+                    type="text"
+                    value={hemoglobin}
+                    onChange={(e) => setHemoglobin(e.target.value)}
+                    required
+                    placeholder="e.g. 14.5 g/dL"
+                    style={{ width: '100%', padding: '6px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Platelet Count
+                  </label>
+                  <input
+                    type="text"
+                    value={platelets}
+                    onChange={(e) => setPlatelets(e.target.value)}
+                    required
+                    placeholder="e.g. 250,000 /mcL"
+                    style={{ width: '100%', padding: '6px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Allergies
+                  </label>
+                  <input
+                    type="text"
+                    value={allergies}
+                    onChange={(e) => setAllergies(e.target.value)}
+                    required
+                    placeholder="e.g. Penicillin, None"
+                    style={{ width: '100%', padding: '6px' }}
+                  />
+                </div>
+              </div>
+
+              {testStatus === 'discarded' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    Detected Disease(s) - Select all that apply
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    {['HIV', 'Hepatitis B', 'Hepatitis C', 'Syphilis', 'Malaria'].map(d => (
+                      <label key={d} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedDiseases.includes(d)}
+                          onChange={() => handleDiseaseToggle(d)}
+                          style={{ width: 'auto' }}
+                        />
+                        {d}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                Laboratory Notes / Deferral Reason
+              </label>
+              <textarea
+                placeholder={testStatus === 'validated' ? 'General health remarks...' : 'Detail the health defects or reasons for discarding...'}
+                value={healthNotes}
+                onChange={(e) => setHealthNotes(e.target.value)}
+                rows={3}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                style={{ 
+                  flex: 1, 
+                  justifyContent: 'center',
+                  background: testStatus === 'validated' ? '#06d6a0' : '#ef233c',
+                  borderColor: testStatus === 'validated' ? '#06d6a0' : '#ef233c'
+                }}
+                disabled={loading}
+              >
+                {testStatus === 'validated' ? <Check size={18} /> : <Trash2 size={18} />}
+                Submit Clinical screening Findings
+              </button>
+              <button 
+                type="button" 
+                className="btn" 
+                onClick={() => setSelectedSample(null)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                Cancel
+              </button>
+            </div>
+
+          </form>
+        </div>
+      )}
+
     </div>
-    );
-   
+  );
 }
+   
+
