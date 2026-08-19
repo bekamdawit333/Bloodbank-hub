@@ -432,6 +432,217 @@ export default function HospitalDashboard({ tab, setTab }) {
 
         </div>
       )}
+      {/* HOSPITAL TO HOSPITAL COMMUNICATION BOARD */}
+      {tab === 'inter' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: '30px', alignItems: 'start' }}>
+          
+          {/* Post transfer request */}
+          <div className="glass-card" style={{ borderTop: '4px solid #8338ec' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Request Blood from Hospitals</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
+              Submit blood request directly to other hospitals. Fulfillers can transfer stock directly from their inventories.
+            </p>
+            <form onSubmit={handleCreateInterRequest} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    Blood Type
+                  </label>
+                  <select value={interBloodType} onChange={(e) => setInterBloodType(e.target.value)} style={{ width: '100%' }}>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    Units Needed
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={interUnits}
+                    onChange={(e) => setInterUnits(parseInt(e.target.value))}
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', background: '#8338ec', borderColor: '#8338ec' }}>
+                <Send size={16} /> Broadcast Transfer Request
+              </button>
+            </form>
+          </div>
+
+          {/* Active inter-hospital board */}
+          <div className="glass-card">
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Active Hospital Transfer Board</h3>
+            {interRequests.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>No active inter-hospital blood requests on board.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Facility Requester</th>
+                      <th>Blood Type</th>
+                      <th>Bags</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Transfer Option</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {interRequests.map(r => {
+                      const availableStock = internalStock.find(s => s.blood_type === r.blood_type)?.quantity || 0;
+                      const canFulfill = availableStock >= r.units_needed;
+
+                      return (
+                        <tr key={r.id}>
+                          <td style={{ fontWeight: 600 }}>{r.requester_name}</td>
+                          <td>
+                            <span className="badge-blood-type">{r.blood_type}</span>
+                          </td>
+                          <td style={{ fontWeight: 'bold' }}>{r.units_needed} units</td>
+                          <td>
+                            <span className={`badge badge-${r.status}`}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleFulfillInterRequest(r.id)}
+                              className="btn btn-primary"
+                              style={{ 
+                                padding: '6px 12px', 
+                                fontSize: '0.75rem',
+                                background: canFulfill ? '#8338ec' : 'rgba(255,255,255,0.03)',
+                                borderColor: canFulfill ? '#8338ec' : 'rgba(255,255,255,0.08)',
+                                color: canFulfill ? '#FFF' : 'var(--text-muted)'
+                              }}
+                              disabled={loading || !canFulfill}
+                            >
+                              <Check size={12} /> Transfer Stock
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* EMERGENCY PATIENT LOOKUP (SEPARATE LAB DATABASE RETRIEVAL) */}
+      {tab === 'emergency' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          <div className="glass-card" style={{ borderLeft: '4px solid #ef233c', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef233c', marginBottom: '8px' }}>
+              <AlertTriangle size={24} />
+              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 'bold' }}>Emergency Patient Medical Lookup</h3>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '24px' }}>
+              In critical emergency scenarios, look up the donor's medical screening profile directly from the **private Laboratory Database**.
+            </p>
+
+            <form onSubmit={handleEmergencyPatientLookup} style={{ display: 'flex', gap: '12px' }}>
+              <input
+                type="text"
+                placeholder="Enter patient FAYDA ID (e.g. ET-001)"
+                value={lookupFaydaId}
+                onChange={(e) => setLookupFaydaId(e.target.value)}
+                required
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ background: '#ef233c', borderColor: '#ef233c' }}>
+                <Search size={18} /> Query Lab Database
+              </button>
+            </form>
+          </div>
+
+          {lookupSearched && (
+            <div className="glass-card animate-fade-in">
+              {lookupError ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <AlertTriangle size={32} color="#ef233c" style={{ marginBottom: '8px' }} />
+                  <div style={{ fontWeight: 'bold', color: '#ef233c' }}>Lookup Failed</div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    {lookupError}
+                  </p>
+                </div>
+              ) : patientRecord ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main)' }}>
+                      Patient Card: <strong>{patientRecord.name}</strong>
+                    </h4>
+                    <span className="badge-blood-type" style={{ fontSize: '1.1rem', padding: '6px 14px' }}>
+                      Blood Type: {patientRecord.bloodType}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                    
+                    {/* Clinical vital signs */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px' }}>
+                      <h5 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: 'var(--primary)', textTransform: 'uppercase' }}>Clinical Vitals Log</h5>
+                      <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>Hemoglobin Count: <strong>{patientRecord.medicalHistory.hemoglobin}</strong></div>
+                        <div>Platelet Count: <strong>{patientRecord.medicalHistory.platelets}</strong></div>
+                        <div>Allergies: <strong>{patientRecord.medicalHistory.allergies}</strong></div>
+                      </div>
+                    </div>
+
+                    {/* Disease screen statuses */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px' }}>
+                      <h5 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: 'var(--primary)', textTransform: 'uppercase' }}>Lab screen Results</h5>
+                      <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>Tested Markers:</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {patientRecord.medicalHistory.diseases}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Patient demographics */}
+                    {patientRecord.demographics && (
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: 'var(--primary)', textTransform: 'uppercase' }}>Demographics</h5>
+                        <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div>Gender: <strong>{patientRecord.demographics.gender}</strong></div>
+                          <div>Address: <strong>{patientRecord.demographics.address}</strong></div>
+                          <div>Health status: <strong>{patientRecord.demographics.healthStatus}</strong></div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.01)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)', fontSize: '0.85rem' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Laboratory Clinical Notes:</div>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{patientRecord.medicalHistory.notes}</p>
+                    <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Last laboratory sync: {new Date(patientRecord.medicalHistory.lastTested).toLocaleString()}
+                    </div>
+                  </div>
+
+                </div>
+              ) : null}
+            </div>
+          )}
+
+        </div>
+      )}
       </div>
       );
 }
