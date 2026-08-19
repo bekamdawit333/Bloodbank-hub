@@ -394,3 +394,15 @@ async function getExpiringBags(req, res) {
       .json({ error: "Failed to retrieve expiring hospital blood bags" });
   }
 }
+module.exports = {
+  getHospitalStock,
+  getWarehouseStockLevels,
+  submitRequisition,
+  getRequisitions,
+  emergencyPatientLookup,
+  getInterHospitalRequests,
+  createInterHospitalRequest,
+  fulfillInterHospitalRequest,
+  getHospitalList,
+  getExpiringBags,
+};
