@@ -446,20 +446,15 @@ async function faydaLookup(req, res) {
       where: { fayda_id: faydaId },
     });
     if (!donor) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "FAYDA National ID not found. Please fill in details manually.",
-        });
+      return res.status(404).json({
+        error: "FAYDA National ID not found. Please fill in details manually.",
+      });
     }
     // Check if donor is already linked to a user account
     if (donor.user_id) {
-      return res
-        .status(400)
-        .json({
-          error: "This FAYDA ID is already linked to an existing user account.",
-        });
+      return res.status(400).json({
+        error: "This FAYDA ID is already linked to an existing user account.",
+      });
     }
     res.json(donor);
   } catch (err) {
@@ -467,5 +462,131 @@ async function faydaLookup(req, res) {
     res
       .status(500)
       .json({ error: "Server error during FAYDA profile retrieval." });
+  }
+}
+// 7. Request password reset or reset ticket
+async function forgotPassword(req, res) {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    const user = await mainDb.user.findUnique({ where: { email } });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ error: "No account registered with this email address." });
+    }
+
+    if (user.role === "donor") {
+      // Donors use verification code reset flow
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+      await mainDb.emailVerification.upsert({
+        where: { email },
+        update: { code, expires_at: expiresAt, verified: false },
+        create: { email, code, expires_at: expiresAt, verified: false },
+      });
+
+      await sendForgotPasswordEmail(email, code);
+
+      console.log(`\n======================================================`);
+      console.log(`[PASSWORD RESET CODE MOCK]`);
+      console.log(`To: ${email}`);
+      console.log(`Reset Code: ${code}`);
+      console.log(`Expires in: 10 minutes`);
+      console.log(`======================================================\n`);
+
+      return res.json({
+        role: "donor",
+        message: "Verification code sent to your email successfully.",
+        code, // return in response for easy testing
+      });
+    } else {
+      // Other roles use Admin reset ticket flow
+      // Avoid duplicate pending requests
+      const existingTicket = await mainDb.passwordResetRequest.findFirst({
+        where: { user_id: user.id, status: "pending" },
+      });
+
+      if (existingTicket) {
+        return res.json({
+          role: user.role,
+          message:
+            "A password reset request is already pending with the system administrator. Please contact them.",
+        });
+      }
+
+      await mainDb.passwordResetRequest.create({
+        data: {
+          user_id: user.id,
+          email: user.email,
+          role: user.role,
+          entity_name: user.entity_name,
+          status: "pending",
+        },
+      });
+
+      return res.json({
+        role: user.role,
+        message:
+          "A request has been sent to the system administrator to reset your password. Please contact the administrator.",
+      });
+    }
+  } catch (err) {
+    console.error("[authController] forgotPassword error:", err);
+    res
+      .status(500)
+      .json({ error: "Server error during password reset request." });
+  }
+}
+
+// 8. Donor reset password using code
+async function resetPasswordDonor(req, res) {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) {
+    return res
+      .status(400)
+      .json({ error: "Email, code, and newPassword are required" });
+  }
+
+  try {
+    const record = await mainDb.emailVerification.findUnique({
+      where: { email },
+    });
+    if (!record) {
+      return res
+        .status(400)
+        .json({ error: "No verification request found for this email" });
+    }
+
+    if (record.code !== code) {
+      return res.status(400).json({ error: "Invalid verification code" });
+    }
+
+    if (new Date() > record.expires_at) {
+      return res.status(400).json({ error: "Verification code has expired" });
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update user password
+    await mainDb.user.update({
+      where: { email },
+      data: { password_hash: passwordHash },
+    });
+
+    // Clear verification record
+    await mainDb.emailVerification.delete({ where: { email } });
+
+    res.json({
+      message: "Your password has been reset successfully. You can now log in.",
+    });
+  } catch (err) {
+    console.error("[authController] resetPasswordDonor error:", err);
+    res.status(500).json({ error: "Server error during password reset." });
   }
 }
