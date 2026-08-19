@@ -109,3 +109,15 @@ async function submitTestResult(req, res) {
           }
         }
       });
+            if (status === 'validated') {
+        await tx.warehouseStock.upsert({
+          where: {
+            warehouse_id_blood_type: {
+              warehouse_id,
+              blood_type: finalBloodType
+            }
+          },
+          update: { quantity: { increment: 1 } },
+          create: { warehouse_id, blood_type: finalBloodType, quantity: 1 }
+        });
+      }
