@@ -122,3 +122,115 @@ async function getDonorDashboardInfo(req, res) {
     res.status(500).json({ error: 'Failed to compile donor dashboard information' });
   }
 }
+
+// Book appointment
+async function bookAppointment(req, res) {
+  const { station_id, date_time } = req.body;
+  if (!station_id || !date_time) {
+    return res.status(400).json({ error: 'Station ID and Date Time are required' });
+  }
+  try {
+    const donor = await mainDb.donor.findUnique({
+      where: { user_id: req.user.id }
+    });
+    if (!donor) {
+      return res.status(404).json({ error: 'Donor profile not found. Please complete registration first.' });
+    }
+
+    const apptTime = new Date(date_time);
+    const bufferMin = 30;
+    const startRange = new Date(apptTime.getTime() - bufferMin * 60 * 1000);
+    const endRange = new Date(apptTime.getTime() + bufferMin * 60 * 1000);
+
+    const existingAppt = await mainDb.appointment.findFirst({
+      where: {
+        station_id,
+        date_time: {
+          gte: startRange,
+          lte: endRange
+        },
+        status: 'scheduled'
+      }
+    });
+
+    if (existingAppt) {
+      return res.status(400).json({ error: 'This time slot is already booked at this station. Please choose another time.' });
+    }
+
+    const appointment = await mainDb.appointment.create({
+      data: {
+        donor_id: donor.fayda_id,
+        station_id,
+        date_time: apptTime,
+        status: 'scheduled'
+      }
+    });
+
+    res.status(201).json({ message: 'Appointment scheduled successfully', appointment });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to book appointment' });
+  }
+}
+
+// Retrieve donor's scheduled appointments
+async function getAppointments(req, res) {
+  try {
+    const donor = await mainDb.donor.findUnique({
+      where: { user_id: req.user.id }
+    });
+    if (!donor) {
+      return res.status(404).json({ error: 'Donor profile not found.' });
+    }
+
+    const appointments = await mainDb.appointment.findMany({
+      where: { donor_id: donor.fayda_id },
+      include: {
+        station: { select: { entity_name: true } }
+      },
+      orderBy: { date_time: 'asc' }
+    });
+
+    res.json(appointments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve appointments' });
+  }
+}
+
+// Cancel appointment slot
+async function cancelAppointment(req, res) {
+  const { id } = req.params;
+  try {
+    const appt = await mainDb.appointment.update({
+      where: { id },
+      data: { status: 'cancelled' }
+    });
+    res.json({ message: 'Appointment cancelled successfully', appointment: appt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to cancel appointment' });
+  }
+}
+
+// Get approved donation stations list
+async function getStationsList(req, res) {
+  try {
+    const stations = await mainDb.user.findMany({
+      where: { role: 'station', status: 'approved' },
+      select: { id: true, entity_name: true }
+    });
+    res.json(stations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve stations list' });
+  }
+}
+
+module.exports = {
+  getDonorDashboardInfo,
+  bookAppointment,
+  getAppointments,
+  cancelAppointment,
+  getStationsList
+};
