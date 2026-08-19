@@ -71,3 +71,17 @@ async function submitTestResult(req, res) {
     return res.status(400).json({ error: 'A valid tested blood type is required to validate the sample' });
   }
 }
+  try {
+    const sample = await mainDb.bloodSample.findUnique({
+      where: { id },
+      include: { donor: true }
+    });
+
+    if (!sample) {
+      return res.status(404).json({ error: 'Blood sample not found' });
+    }
+    if (sample.status !== 'pending_lab') {
+      return res.status(400).json({ error: 'Sample has already been screened' });
+    }
+
+    const finalBloodType = blood_type || sample.blood_type || 'UNKNOWN';
