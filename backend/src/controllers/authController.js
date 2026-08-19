@@ -207,3 +207,138 @@ async function verifyCode(req, res) {
     res.status(500).json({ error: "Server error during code verification" });
   }
 }
+
+// 3. Complete registration
+async function registerComplete(req, res) {
+  const {
+    email,
+    password,
+    role,
+    entityName,
+    faydaId,
+    name,
+    phone,
+    dob,
+    gender,
+    address,
+    bloodType,
+  } = req.body;
+
+  if (!email || !password || !role) {
+    return res
+      .status(400)
+      .json({ error: "Email, password, and role are required" });
+  }
+
+  try {
+    if (role === "donor") {
+      // Confirm email verification was completed
+      const record = await mainDb.emailVerification.findUnique({
+        where: { email },
+      });
+      if (!record || !record.verified) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Email has not been verified yet. Run verification step first.",
+          });
+      }
+    }
+
+    const userCheck = await mainDb.user.findUnique({ where: { email } });
+    if (userCheck) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    // Set entity name depending on role
+    const finalEntityName =
+      role === "donor" ? name : entityName || `${role.toUpperCase()} Entity`;
+
+    // Only donors are auto-approved (validated via email). Workstations are pending admin approval.
+    const status = role === "donor" ? "approved" : "pending";
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create the User in database
+    const newUser = await mainDb.user.create({
+      data: {
+        email,
+        password_hash: passwordHash,
+        role,
+        status,
+        entity_name: finalEntityName,
+      },
+    });
+
+    // If role is donor, set up donor profile in PostgreSQL
+    if (role === "donor") {
+      const finalFaydaId =
+        faydaId || `ET-${Math.floor(100000 + Math.random() * 900000)}`;
+      const parsedDob = dob ? new Date(dob) : new Date("1995-01-01");
+
+      // Check if donor is already in database (FAYDA registry import)
+      const existingDonor = await mainDb.donor.findFirst({
+        where: {
+          OR: [{ fayda_id: finalFaydaId }, { phone: phone || "" }],
+        },
+      });
+
+      if (existingDonor) {
+        // Link existing profile to this user account
+        await mainDb.donor.update({
+          where: { fayda_id: existingDonor.fayda_id },
+          data: {
+            user_id: newUser.id,
+            // Update details if they weren't in registry before
+            name: name || existingDonor.name,
+            dob: dob ? parsedDob : existingDonor.dob,
+            gender: gender || existingDonor.gender,
+            address: address || existingDonor.address,
+            blood_type: bloodType || existingDonor.blood_type || "UNKNOWN",
+          },
+        });
+      } else {
+        // Create new donor profile
+        await mainDb.donor.create({
+          data: {
+            fayda_id: finalFaydaId,
+            name: name || "Anonymous Donor",
+            phone:
+              phone ||
+              `+2519${Math.floor(10000000 + Math.random() * 90000000)}`,
+            dob: parsedDob,
+            gender: gender || "Male",
+            address: address || "Addis Ababa",
+            blood_type: bloodType || "UNKNOWN",
+            points: 0,
+            user_id: newUser.id,
+          },
+        });
+      }
+    }
+
+    // Clear verification record
+    if (role === "donor") {
+      await mainDb.emailVerification.delete({ where: { email } });
+    }
+
+    res.status(201).json({
+      message:
+        status === "approved"
+          ? "Registration successful"
+          : "Registration pending Admin approval",
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+        status: newUser.status,
+        entity_name: newUser.entity_name,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "Server error during registration completion" });
+  }
+}
