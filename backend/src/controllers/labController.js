@@ -121,3 +121,32 @@ async function submitTestResult(req, res) {
           create: { warehouse_id, blood_type: finalBloodType, quantity: 1 }
         });
       }
+          const defaultDiseases = status === 'validated'
+      ? 'HIV: Negative, Syphilis: Negative, Hepatitis: Negative'
+      : `Defective. Detected: ${health_notes || 'Abnormal clinical markers'}`;
+
+    await labDb.labMedicalRecord.upsert({
+      where: { faydaId: sample.fayda_id },
+      update: {
+        name: sample.donor.name,
+        phone: sample.donor.phone,
+        bloodType: finalBloodType,
+        diseases: diseases || defaultDiseases,
+        hemoglobin: hemoglobin || '14.5 g/dL',
+        platelets: platelets || '250,000 /mcL',
+        allergies: allergies || 'None',
+        otherNotes: health_notes || 'Routine screening, sample tested.',
+        updatedAt: new Date()
+      },
+      create: {
+        faydaId: sample.fayda_id,
+        name: sample.donor.name,
+        phone: sample.donor.phone,
+        bloodType: finalBloodType,
+        diseases: diseases || defaultDiseases,
+        hemoglobin: hemoglobin || '14.5 g/dL',
+        platelets: platelets || '250,000 /mcL',
+        allergies: allergies || 'None',
+        otherNotes: health_notes || 'Routine screening, sample tested.'
+      }
+    });
