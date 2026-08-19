@@ -196,3 +196,30 @@ async function createBloodSample(req, res) {
     res.status(500).json({ error: 'Failed to log blood sample' });
   }
 }
+
+
+async function getStationSamples(req, res) {
+  try {
+    const samples = await mainDb.bloodSample.findMany({
+      where: { station_id: req.user.id },
+      include: {
+        donor: { select: { name: true } },
+        lab: { select: { entity_name: true } }
+      },
+      orderBy: { collected_at: 'desc' }
+    });
+
+    // Format fields to match what frontend expects
+    const formatted = samples.map(s => ({
+      ...s,
+      donor_name: s.donor.name,
+      lab_name: s.lab ? s.lab.entity_name : 'Unassigned'
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch station blood samples' });
+  }
+}
+
