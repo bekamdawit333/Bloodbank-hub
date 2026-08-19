@@ -85,3 +85,6 @@ async function submitTestResult(req, res) {
     }
 
     const finalBloodType = blood_type || sample.blood_type || 'UNKNOWN';
+        await mainDb.$transaction(async (tx) => {
+      // Transaction queries will go here
+    });
