@@ -33,3 +33,11 @@ async function getUsers(req, res) {
       },
       orderBy: { created_at: 'desc' }
     });
+    async function updateUserStatus(req, res) {
+  const { id } = req.params;
+  const { status } = req.body; // 'approved' or 'rejected'
+
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid registration status option' });
+  }
+}
