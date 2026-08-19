@@ -24,6 +24,25 @@ export default function StationDashboard() {
   const [address, setAddress] = useState('');
   const [bloodType, setBloodType] = useState('UNKNOWN');
 
+  // Screening questionnaire state
+  const [questionnaire, setQuestionnaire] = useState({
+    tattoo: 'No',
+    medication: 'No',
+    surgery: 'No',
+    malaria: 'No',
+    unwell: 'No',
+    hivHistory: 'No'
+  });
+
+  const handleQuestionnaireChange = (key, value) => {
+    setQuestionnaire(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const questionnaireFailed = Object.values(questionnaire).includes('Yes');
+
   const fetchLabsAndSamples = async () => {
     setLoading(true);
     try {
@@ -56,6 +75,14 @@ export default function StationDashboard() {
 
     try {
       const data = await api.station.lookupDonor(queryId);
+      setQuestionnaire({
+        tattoo: 'No',
+        medication: 'No',
+        surgery: 'No',
+        malaria: 'No',
+        unwell: 'No',
+        hivHistory: 'No'
+      });
 
       if (data.found) {
         setDonorResult(data.donor);
@@ -81,6 +108,10 @@ export default function StationDashboard() {
 
   const handleRegisterAndCollect = async (e) => {
     e.preventDefault();
+    if (questionnaireFailed) {
+      setError('Cannot complete registration: Donor is deferred based on questionnaire responses.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -100,11 +131,13 @@ export default function StationDashboard() {
         is_returning: isReturning
       });
 
+      const notes = `Questionnaire: Tattoo=${questionnaire.tattoo}, Meds=${questionnaire.medication}, Surgery=${questionnaire.surgery}, Malaria=${questionnaire.malaria}, Unwell=${questionnaire.unwell}, Infections=${questionnaire.hivHistory}. Passed.`;
+
       await api.station.createSample({
         fayda_id: donorRes.donor.fayda_id,
         blood_type: donorRes.donor.blood_type,
         lab_id: selectedLabId,
-        health_notes: 'Standard registration'
+        health_notes: notes
       });
 
       setSuccess(`Successfully logged donation bag (${donorRes.donor.blood_type}) and routed to ${labs.find(l => l.id === selectedLabId)?.entity_name || 'Lab'}.`);
@@ -114,6 +147,15 @@ export default function StationDashboard() {
       setEligibility(null);
       setQueryId('');
 
+      setQuestionnaire({
+        tattoo: 'No',
+        medication: 'No',
+        surgery: 'No',
+        malaria: 'No',
+        unwell: 'No',
+        hivHistory: 'No'
+      });
+
       const samplesList = await api.station.getSamples();
       setSamples(samplesList);
     } catch (err) {
@@ -121,6 +163,61 @@ export default function StationDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderQuestionnaireForm = () => {
+    const questions = [
+      { key: 'tattoo', text: 'Tattoo, body piercing, or acupuncture in the past 3 months?' },
+      { key: 'medication', text: 'Taking antibiotics or under treatment for active infection?' },
+      { key: 'surgery', text: 'Surgery or major dental procedure in the past 3 months?' },
+      { key: 'malaria', text: 'Travel to or lived in malaria-endemic zone in past 3 months?' },
+      { key: 'unwell', text: 'Feels unwell, has fever, active cold or cough symptoms today?' },
+      { key: 'hivHistory', text: 'Ever tested positive for HIV, Hepatitis B/C, or Syphilis?' }
+    ];
+
+    return (
+      <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+        <h5 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: 'var(--primary)', textTransform: 'uppercase' }}>
+          Screening Questionnaire
+        </h5>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '12px' }}>
+          Verify donor eligibility. Any <strong>YES</strong> deferrals will block this donation.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+          {questions.map((q) => (
+            <div key={q.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '8px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{q.text}</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuestionnaireChange(q.key, 'Yes')}
+                  className={`btn ${questionnaire[q.key] === 'Yes' ? 'btn-danger' : 'btn-secondary'}`}
+                  style={{ padding: '3px 8px', fontSize: '0.7rem', minWidth: '42px', height: '24px' }}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuestionnaireChange(q.key, 'No')}
+                  className={`btn ${questionnaire[q.key] === 'No' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '3px 8px', fontSize: '0.7rem', minWidth: '42px', height: '24px', background: questionnaire[q.key] === 'No' ? '#06d6a0' : undefined }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {questionnaireFailed && (
+          <div style={{ background: 'rgba(239,35,60,0.1)', border: '1px solid rgba(239,35,60,0.2)', color: '#ef233c', padding: '10px', borderRadius: '6px', display: 'flex', gap: '6px', alignItems: 'center', fontSize: '0.8rem', marginBottom: '12px' }}>
+            <AlertTriangle size={14} />
+            <div><strong>Donor Deferred:</strong> Ineligible to donate today.</div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -198,6 +295,8 @@ export default function StationDashboard() {
                     <form onSubmit={handleRegisterAndCollect} style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
                       <h4 style={{ margin: 0, color: 'var(--primary)' }}>Log Blood Donation Event</h4>
                       
+                      {renderQuestionnaireForm()}
+
                       <div style={{ marginTop: '12px' }}>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                           Assign Screening Laboratory
@@ -214,7 +313,7 @@ export default function StationDashboard() {
                         </select>
                       </div>
 
-                      <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+                      <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
                         <PlusCircle size={18} /> Fast-Track Sample & Route to Lab
                       </button>
                     </form>
@@ -310,6 +409,8 @@ export default function StationDashboard() {
                     />
                   </div>
 
+                  {renderQuestionnaireForm()}
+
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', marginTop: '12px' }}>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                       Assign Screening Laboratory
@@ -326,7 +427,7 @@ export default function StationDashboard() {
                     </select>
                   </div>
 
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
                     <UserCheck size={18} /> Register Profile & Collect Blood
                   </button>
                 </form>
