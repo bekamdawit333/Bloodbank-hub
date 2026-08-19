@@ -2,8 +2,8 @@
 import { LogOut, Heart, Shield, Activity, User, Building, Warehouse, Sun, Moon, Smartphone, Monitor, Menu, Users, BarChart3, ToggleLeft, History, Megaphone, Award, Calendar, Package, Truck, Search, Stethoscope, Key } from 'lucide-react';
 import { api } from './services/api';
 import Landing from './pages/Landing';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
+import Login from './pages/auth/Login/auth';
+import Register from './pages/auth/Registertion/Register';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
 import DonorDashboard from './pages/dashboards/DonorDashboard';
 import StationDashboard from './pages/dashboards/StationDashboard';
