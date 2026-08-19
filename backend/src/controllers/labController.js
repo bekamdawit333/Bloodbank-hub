@@ -88,3 +88,24 @@ async function submitTestResult(req, res) {
         await mainDb.$transaction(async (tx) => {
       // Transaction queries will go here
     });
+          await tx.bloodSample.update({
+        where: { id },
+        data: {
+          status,
+          health_notes: health_notes || null,
+          lab_id: req.user.id,
+          blood_type: finalBloodType
+        }
+      });
+
+      const donorHealth = status === 'validated' ? 'healthy' : 'defective';
+      await tx.donor.update({
+        where: { fayda_id: sample.fayda_id },
+        data: {
+          health_status: donorHealth,
+          blood_type: finalBloodType,
+          points: {
+            increment: status === 'validated' ? 100 : 0
+          }
+        }
+      });
