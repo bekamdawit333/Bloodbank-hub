@@ -1,5 +1,6 @@
 ﻿const { mainDb } = require('../config/prisma');
 const { logAction } = require('../utils/audit');
+const { sendSMS } = require('../utils/sms');
 
 async function lookupDonor(req, res) {
   const { id } = req.params; 
@@ -150,5 +151,48 @@ async function registerDonorEvent(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to process donor registration event' });
+  }
+}
+
+async function createBloodSample(req, res) {
+  const { fayda_id, blood_type, lab_id, health_notes } = req.body;
+  if (!fayda_id || !blood_type || !lab_id) {
+    return res.status(400).json({ error: 'FAYDA ID, Blood Type, and Laboratory selection are required' });
+  }
+
+  try {
+    const donor = await mainDb.donor.findUnique({ where: { fayda_id } });
+    if (!donor) {
+      return res.status(404).json({ error: 'Donor profile not found in database.' });
+    }
+
+    const sample = await mainDb.bloodSample.create({
+      data: {
+        fayda_id,
+        blood_type,
+        status: 'pending_lab',
+        station_id: req.user.id,
+        lab_id,
+        health_notes: health_notes || null
+      }
+    });
+
+    // Send thank you SMS for donation
+    const smsMessage = `Thank you, ${donor.name}! We have successfully received your blood donation at our station. Your sample is now being routed to the laboratory for screening. - Blood Bank Hub`;
+    await sendSMS(donor.phone, smsMessage, sample.id, 'initial');
+
+    await logAction(
+      req.user.id,
+      'BLOOD_SAMPLE_COLLECTED',
+      `Collected blood sample ${sample.id} for donor ${donor.name} (${donor.fayda_id}) and routed to lab ${lab_id}.`
+    );
+ 
+    res.status(201).json({
+      message: 'Blood sample logged and routed to laboratory',
+      sample
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to log blood sample' });
   }
 }
