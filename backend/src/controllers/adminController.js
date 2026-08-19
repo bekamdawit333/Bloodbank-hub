@@ -156,3 +156,54 @@ async function getUsers(req, res) {
     res.status(500).json({ error: 'Failed reminders' });
   }
 }
+async function getAuditLogs(req, res) {
+  try {
+    const logs = await mainDb.auditLog.findMany({
+      include: { user: { select: { email: true, entity_name: true, role: true } } },
+      orderBy: { created_at: 'desc' }
+    });
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed audit logs' });
+  }
+}
+
+async function getPasswordResetRequests(req, res) {
+  try {
+    const requests = await mainDb.passwordResetRequest.findMany({ orderBy: { created_at: 'desc' } });
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed reset requests' });
+  }
+}
+
+async function resolvePasswordResetRequest(req, res) {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+  if (!newPassword) return res.status(400).json({ error: 'New password is required' });
+
+  try {
+    const ticket = await mainDb.passwordResetRequest.findUnique({ where: { id } });
+    if (!ticket || ticket.status === 'resolved') return res.status(400).json({ error: 'Invalid ticket' });
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await mainDb.user.update({ where: { id: ticket.user_id }, data: { password_hash: passwordHash } });
+    await mainDb.passwordResetRequest.update({ where: { id }, data: { status: 'resolved' } });
+
+    await logAction(req.user.id, 'PASSWORD_RESET_RESOLVED', `Admin resolved password reset ticket for ${ticket.email}.`);
+    res.json({ message: `Successfully reset password for ${ticket.email}.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed resolve' });
+  }
+}
+
+module.exports = {
+  getUsers,
+  updateUserStatus,
+  getAdminAnalytics,
+  triggerThreeMonthReminders,
+  getAuditLogs,
+  getPasswordResetRequests,
+  resolvePasswordResetRequest,
+};
