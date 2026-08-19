@@ -90,3 +90,25 @@ async function getUsers(req, res) {
     }));
 
     hospitalRequestsData.sort((a, b) => b.total_units - a.total_units);
+
+        const samples = await mainDb.bloodSample.findMany({
+      include: { station: { select: { entity_name: true } } }
+    });
+
+    const stationMap = {};
+    samples.forEach(s => {
+      const name = s.station.entity_name;
+      stationMap[name] = (stationMap[name] || 0) + 1;
+    });
+
+    const stationCollectionsData = Object.keys(stationMap).map(name => ({
+      station_name: name,
+      total_samples: stationMap[name]
+    }));
+
+    stationCollectionsData.sort((a, b) => b.total_samples - a.total_samples);
+
+    res.json({
+      hospitalRequests: hospitalRequestsData,
+      stationCollections: stationCollectionsData
+    });
