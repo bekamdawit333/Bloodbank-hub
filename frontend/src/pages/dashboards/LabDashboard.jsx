@@ -100,4 +100,79 @@ export default function LabDashboard() {
       setLoading(false);
     }
   };
+    return (
+    <div style={{ display: 'grid', gridTemplateColumns: selectedSample ? '1fr 1fr' : '1fr', gap: '30px', alignItems: 'start' }}>
+      
+      {/* Pending workstation items queue */}
+      <div className="glass-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Shield size={22} color="var(--primary)" />
+            <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Pending Screening Screening Queue</h3>
+          </div>
+          <button onClick={loadData} className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <RefreshCw size={12} /> Reload Queue
+          </button>
+        </div>
+
+        {error && (
+          <div style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '12px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '20px' }}>
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div style={{ background: 'rgba(58,134,255,0.1)', color: '#3a86ff', padding: '12px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '20px' }}>
+            {success}
+          </div>
+        )}
+
+        {loading && samples.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)' }}>Loading pending collections...</p>
+        ) : samples.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)' }}>Screening workspace clean. No pending blood bags routed to you.</p>
+        ) : (
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Donor Patient</th>
+                  <th>Blood Type</th>
+                  <th>Collection Station</th>
+                  <th>Logged Date</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {samples.map(s => (
+                  <tr key={s.id} style={{ 
+                    background: selectedSample?.id === s.id ? 'rgba(239, 35, 60, 0.05)' : 'transparent' 
+                  }}>
+                    <td style={{ fontWeight: 600 }}>{s.donor_name}</td>
+                    <td>
+                      <span className="badge-blood-type">{s.blood_type}</span>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{s.station_name}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {new Date(s.collected_at).toLocaleDateString()}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button 
+                        onClick={() => handleSelectSample(s)}
+                        className="btn btn-primary"
+                        style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                      >
+                        Run Screening Screen
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+    );
+   
 }
