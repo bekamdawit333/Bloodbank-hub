@@ -148,7 +148,8 @@ export default function HospitalDashboard({ tab, setTab }) {
       socket.disconnect();
     };
   }, []);
-    const handleCreateRequisition = async (e) => {
+
+  const handleCreateRequisition = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -264,6 +265,7 @@ export default function HospitalDashboard({ tab, setTab }) {
           {success}
         </div>
       )}
+
       {/* INTERNAL FACILITY STOCK */}
       {tab === 'internal' && (
         <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '3fr 2fr', gap: '30px', alignItems: 'start' }}>
@@ -432,6 +434,7 @@ export default function HospitalDashboard({ tab, setTab }) {
 
         </div>
       )}
+
       {/* HOSPITAL TO HOSPITAL COMMUNICATION BOARD */}
       {tab === 'inter' && (
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: '30px', alignItems: 'start' }}>
@@ -643,7 +646,7 @@ export default function HospitalDashboard({ tab, setTab }) {
 
         </div>
       )}
-       {tab === 'hms' && (
+      {tab === 'hms' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
           {/* HMS Header Row */}
@@ -766,10 +769,103 @@ export default function HospitalDashboard({ tab, setTab }) {
               <button onClick={() => setOrderFulfillmentMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', flexShrink: 0 }}><X size={15} /></button>
             </div>
           )}
-         
-        </div>   
-      )}        
 
-    </div>       
+          {/* Main Two-Column Layout */}
+          <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 900 ? '1fr' : '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+
+            {/* Left: Patients List */}
+            <div className="glass-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <UserPlus size={16} color="var(--primary)" /> Patients
+                </h3>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {['admitted','discharged'].map(s => (
+                    <button key={s} onClick={() => setHmsFilter(s)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 600, border: '1px solid var(--border-color)', background: hmsFilter === s ? 'var(--primary)' : 'transparent', color: hmsFilter === s ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', textTransform: 'capitalize' }}>{s}</button>
+                  ))}
+                </div>
+              </div>
+              {hmsLoading ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading patients...</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto' }}>
+                  {hmsPatients.filter(p => p.admission_status === hmsFilter).length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No {hmsFilter} patients.</p>
+                  ) : hmsPatients.filter(p => p.admission_status === hmsFilter).map(patient => (
+                    <div key={patient.id} onClick={() => setSelectedPatient(selectedPatient?.id === patient.id ? null : patient)} style={{ padding: '12px', borderRadius: '8px', border: selectedPatient?.id === patient.id ? '1px solid var(--primary)' : '1px solid var(--border-color)', background: selectedPatient?.id === patient.id ? 'rgba(217,4,41,0.03)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{patient.full_name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '3px' }}>Ward {patient.ward} · Bed {patient.bed_number} · Age {patient.age}</div>
+                          {patient.diagnosis && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{patient.diagnosis}</div>}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          <span className="badge-blood-type" style={{ fontSize: '0.7rem', padding: '2px 7px' }}>{patient.blood_type}</span>
+                          {patient.admission_status === 'admitted' && (
+                            <button onClick={e => { e.stopPropagation(); if(window.confirm(`Discharge ${patient.full_name}?`)) api.hms.dischargePatient(patient.id).then(loadHmsData).catch(err => alert(err.message)); }} style={{ fontSize: '0.68rem', padding: '2px 8px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-secondary)' }}>Discharge</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Blood Orders */}
+            <div className="glass-card">
+              <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ClipboardList size={16} color="#3b82f6" /> Blood Orders
+              </h3>
+              {hmsLoading ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading orders...</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto' }}>
+                  {hmsOrders.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No blood orders yet. Create one using the button above.</p>
+                  ) : hmsOrders.map(order => {
+                    const urgencyColor = order.urgency === 'emergency' ? '#ef233c' : order.urgency === 'urgent' ? '#f77f00' : '#06d6a0';
+                    const statusColors = { pending: '#94a3b8', requisition_placed: '#3b82f6', dispatched: '#f77f00', transfused: '#06d6a0', cancelled: '#ef233c' };
+                    return (
+                      <div key={order.id} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{order.patient?.full_name || 'Unknown Patient'}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Ward {order.patient?.ward} · Bed {order.patient?.bed_number}</div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                            <span className="badge-blood-type" style={{ fontSize: '0.7rem', padding: '2px 7px' }}>{order.blood_type}</span>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: urgencyColor, textTransform: 'uppercase' }}>{order.urgency}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            {order.units_needed} unit(s) · <span style={{ color: statusColors[order.status] || '#94a3b8', fontWeight: 600, textTransform: 'capitalize' }}>{order.status.replace('_', ' ')}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            {order.status === 'dispatched' && (
+                              <button onClick={() => api.hms.markTransfused(order.id).then(loadHmsData).catch(err => alert(err.message))} style={{ fontSize: '0.68rem', padding: '3px 10px', background: '#06d6a0', border: 'none', borderRadius: '4px', cursor: 'pointer', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <CheckCircle size={11} /> Mark Transfused
+                              </button>
+                            )}
+                            {['pending', 'requisition_placed'].includes(order.status) && (
+                              <button onClick={() => { if(window.confirm('Cancel this blood order?')) api.hms.cancelBloodOrder(order.id).then(loadHmsData).catch(err => alert(err.message)); }} style={{ fontSize: '0.68rem', padding: '3px 10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {order.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', fontStyle: 'italic' }}>{order.notes}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }
