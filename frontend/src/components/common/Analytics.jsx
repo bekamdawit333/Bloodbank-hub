@@ -102,11 +102,106 @@ export default function Analytics({ hospitalRequests = [], stationCollections = 
     );
   };
 
+  // Render Custom SVG Donut/Pie Chart for Station Collections
+  const renderDonutChart = () => {
+    if (!hasCollections) {
+      return (
+        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+          No donation station collection logs recorded.
+        </div>
+      );
+    }
+
+    const totalSamples = stationCollections.reduce((sum, s) => sum + s.total_samples, 0);
+
+    const size = 200;
+    const r = 70;
+    const cx = size / 2;
+    const cy = size / 2;
+    const circumference = 2 * Math.PI * r;
+
+    // Categorized colors
+    const colors = ['#ef233c', '#3a86ff', '#ffb703', '#8338ec', '#06d6a0', '#ff006e'];
+
+    let accumulatedPercentage = 0;
+
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '30px' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="20" />
+          
+          {stationCollections.map((item, idx) => {
+            const percent = item.total_samples / totalSamples;
+            const strokeLength = percent * circumference;
+            const strokeOffset = -accumulatedPercentage * circumference;
+            accumulatedPercentage += percent;
+            
+            const color = colors[idx % colors.length];
+
+            return (
+              <circle
+                key={idx}
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke={color}
+                strokeWidth="20"
+                strokeDasharray={`${strokeLength} ${circumference - strokeLength}`}
+                strokeDashoffset={strokeOffset}
+                transform={`rotate(-90 ${cx} ${cy})`}
+                style={{
+                  transition: 'stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease',
+                  cursor: 'pointer'
+                }}
+                title={`${item.station_name}: ${item.total_samples} bags`}
+              />
+            );
+          })}
+
+          {/* Center text */}
+          <g>
+            <text x={cx} y={cy - 4} fill="var(--text-primary)" fontSize="18" fontWeight="800" textAnchor="middle">
+              {totalSamples}
+            </text>
+            <text x={cx} y={cy + 12} fill="var(--text-muted)" fontSize="8" fontWeight="bold" letterSpacing="1" textAnchor="middle">
+              TOTAL BAGS
+            </text>
+          </g>
+        </svg>
+
+        {/* Legend */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '160px' }}>
+          {stationCollections.map((item, idx) => {
+            const percent = Math.round((item.total_samples / totalSamples) * 100);
+            const color = colors[idx % colors.length];
+
+            return (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '3px', background: color }} />
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)', flex: 1 }}>
+                  {item.station_name.split(' ').pop()}
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                  ({percent}%)
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
       <div className="glass-card">
         <h3>Hospital Request Load</h3>
         {renderBarChart()}
+      </div>
+      <div className="glass-card">
+        <h3>Station Collection Share</h3>
+        {renderDonutChart()}
       </div>
     </div>
   );
