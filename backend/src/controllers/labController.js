@@ -155,3 +155,24 @@ async function submitTestResult(req, res) {
       : `Dear ${sample.donor.name}, your blood screening results are complete. Your blood type was tested as ${finalBloodType}. The test has indicated some health complications. Please visit our laboratory. - Blood Bank Hub`;
 
     const smsResult = await sendSMS(sample.donor.phone, smsMessage, id, status === 'validated' ? 'encouragement' : 'warning');
+        await logAction(
+      req.user.id,
+      status === 'validated' ? 'BLOOD_SAMPLE_VALIDATED' : 'BLOOD_SAMPLE_DISCARDED',
+      `Screened blood sample ${id} for donor ${sample.donor.name} (${sample.fayda_id}). Status: ${status}.`
+    );
+ 
+    res.json({
+      message: `Sample screened successfully as ${status} and logged to Laboratory Database`,
+      sms: smsResult
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to process laboratory test validation' });
+  }
+}
+
+module.exports = {
+  getPendingSamples,
+  getWarehouses,
+  submitTestResult
+};
