@@ -18,3 +18,18 @@ async function getUsers(req, res) {
       }
     });
     res.json(users);
+
+        const users = await mainDb.user.findMany({
+      where: {
+        NOT: { role: 'admin' }
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        entity_name: true,
+        created_at: true
+      },
+      orderBy: { created_at: 'desc' }
+    });
