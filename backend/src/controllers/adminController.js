@@ -125,3 +125,34 @@ async function getUsers(req, res) {
 
     let sentCount = 0;
     const details = [];
+        for (const donor of donors) {
+      const lastSample = await mainDb.bloodSample.findFirst({
+        where: { fayda_id: donor.fayda_id },
+        orderBy: { collected_at: 'desc' }
+      });
+
+      if (!lastSample) continue;
+
+      const existingReminderLog = await mainDb.sentSmsLog.findUnique({
+        where: {
+          blood_sample_id_message_type: {
+            blood_sample_id: lastSample.id,
+            message_type: 'reminder'
+          }
+        }
+      });
+
+      if (existingReminderLog) continue;
+
+      const reminderMessage = `Dear ${donor.name}, 3 months have passed since your last blood donation! You are eligible again. - Blood Bank Hub`;
+      await sendSMS(donor.phone, reminderMessage, lastSample.id, 'reminder');
+      sentCount++;
+      details.push({ donor: donor.name, phone: donor.phone, lastDonation: donor.last_donation_date });
+    }
+
+    res.json({ message: `Checked for eligible donors. Sent ${sentCount} reminders.`, sentCount, details });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed reminders' });
+  }
+}
