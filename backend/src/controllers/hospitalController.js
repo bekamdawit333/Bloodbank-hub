@@ -145,3 +145,31 @@ async function emergencyPatientLookup(req, res) {
     res.status(500).json({ error: "Failed to query laboratory database" });
   }
 }
+
+// List all active inter-hospital requests
+async function getInterHospitalRequests(req, res) {
+  try {
+    const requests = await mainDb.hospitalInterRequest.findMany({
+      where: {
+        status: "pending",
+        NOT: { requester_id: req.user.id }, // exclude self-created requests
+      },
+      include: {
+        requester: { select: { entity_name: true } },
+      },
+      orderBy: { created_at: "desc" },
+    });
+
+    const formatted = requests.map((r) => ({
+      ...r,
+      requester_name: r.requester.entity_name,
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve inter-hospital request board" });
+  }
+}
