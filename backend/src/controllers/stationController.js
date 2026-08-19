@@ -223,3 +223,29 @@ async function getStationSamples(req, res) {
   }
 }
 
+async function getApprovedLabs(req, res) {
+  try {
+    const labs = await mainDb.user.findMany({
+      where: {
+        role: 'laboratory',
+        status: 'approved'
+      },
+      select: {
+        id: true,
+        entity_name: true
+      }
+    });
+    res.json(labs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch approved laboratories' });
+  }
+}
+
+module.exports = {
+  lookupDonor,
+  registerDonorEvent,
+  createBloodSample,
+  getStationSamples,
+  getApprovedLabs,
+};
