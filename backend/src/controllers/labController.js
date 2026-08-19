@@ -2,14 +2,9 @@
 const { sendSMS } = require('../utils/sms');
 const { logAction } = require('../utils/audit');
 
+// Get all pending samples routed to this lab
 async function getPendingSamples(req, res) {
   try {
-    // Database query will go here
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch pending lab samples' });
-  }
-}
     const samples = await mainDb.bloodSample.findMany({
       where: {
         lab_id: req.user.id,
@@ -30,7 +25,14 @@ async function getPendingSamples(req, res) {
     }));
 
     res.json(formatted);
-    async function getWarehouses(req, res) {
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch pending lab samples' });
+  }
+}
+
+// Get all approved warehouses
+async function getWarehouses(req, res) {
   try {
     const warehouses = await mainDb.user.findMany({
       where: {
@@ -48,6 +50,8 @@ async function getPendingSamples(req, res) {
     res.status(500).json({ error: 'Failed to fetch warehouses' });
   }
 }
+
+// Submit test results: updates Postgres inventory AND writes medical records to PostgreSQL Laboratory DB
 async function submitTestResult(req, res) {
   const { id } = req.params;
   const {
@@ -70,8 +74,9 @@ async function submitTestResult(req, res) {
   if (status === 'validated' && (!blood_type || blood_type === 'UNKNOWN')) {
     return res.status(400).json({ error: 'A valid tested blood type is required to validate the sample' });
   }
-}
+
   try {
+    // 1. Fetch sample details from main database
     const sample = await mainDb.bloodSample.findUnique({
       where: { id },
       include: { donor: true }
@@ -85,10 +90,15 @@ async function submitTestResult(req, res) {
     }
 
     const finalBloodType = blood_type || sample.blood_type || 'UNKNOWN';
-        await mainDb.$transaction(async (tx) => {
-      // Transaction queries will go here
-    });
-          await tx.bloodSample.update({
+
+    const defaultDiseases = status === 'validated'
+      ? 'HIV: Negative, Syphilis: Negative, Hepatitis: Negative'
+      : `Defective. Detected: ${health_notes || 'Abnormal clinical markers'}`;
+
+    // 2. Transaction on main database
+    await mainDb.$transaction(async (tx) => {
+      // A. Update blood sample status
+      await tx.bloodSample.update({
         where: { id },
         data: {
           status,
@@ -98,6 +108,7 @@ async function submitTestResult(req, res) {
         }
       });
 
+      // B. Update donor profile and award points
       const donorHealth = status === 'validated' ? 'healthy' : 'defective';
       await tx.donor.update({
         where: { fayda_id: sample.fayda_id },
@@ -109,7 +120,9 @@ async function submitTestResult(req, res) {
           }
         }
       });
-            if (status === 'validated') {
+
+      // C. Update warehouse inventory stock
+      if (status === 'validated') {
         await tx.warehouseStock.upsert({
           where: {
             warehouse_id_blood_type: {
@@ -117,14 +130,19 @@ async function submitTestResult(req, res) {
               blood_type: finalBloodType
             }
           },
-          update: { quantity: { increment: 1 } },
-          create: { warehouse_id, blood_type: finalBloodType, quantity: 1 }
+          update: {
+            quantity: { increment: 1 }
+          },
+          create: {
+            warehouse_id,
+            blood_type: finalBloodType,
+            quantity: 1
+          }
         });
       }
-          const defaultDiseases = status === 'validated'
-      ? 'HIV: Negative, Syphilis: Negative, Hepatitis: Negative'
-      : `Defective. Detected: ${health_notes || 'Abnormal clinical markers'}`;
+    });
 
+    // 3. Write screening record to laboratory database
     await labDb.labMedicalRecord.upsert({
       where: { faydaId: sample.fayda_id },
       update: {
@@ -150,15 +168,25 @@ async function submitTestResult(req, res) {
         otherNotes: health_notes || 'Routine screening, sample tested.'
       }
     });
-        let smsMessage = status === 'validated'
-      ? `Thank you, ${sample.donor.name}! Your blood screening results are complete. Your blood type is ${finalBloodType}. You have no health issues, and your blood donation is safe and ready. - Blood Bank Hub`
-      : `Dear ${sample.donor.name}, your blood screening results are complete. Your blood type was tested as ${finalBloodType}. The test has indicated some health complications. Please visit our laboratory. - Blood Bank Hub`;
 
-    const smsResult = await sendSMS(sample.donor.phone, smsMessage, id, status === 'validated' ? 'encouragement' : 'warning');
-        await logAction(
+    // 4. Send SMS notification to donor
+    let smsMessage = '';
+    let msgType = '';
+
+    if (status === 'validated') {
+      smsMessage = `Thank you, ${sample.donor.name}! Your blood screening results are complete. Your blood type is ${finalBloodType}. You have no health issues, and your blood donation is safe and ready to save lives. We encourage you to donate again in 3 months! - Blood Bank Hub`;
+      msgType = 'encouragement';
+    } else {
+      smsMessage = `Dear ${sample.donor.name}, your blood screening results are complete. Your blood type was tested as ${finalBloodType}. The test has indicated some health complications. Please visit our laboratory facility or a medical doctor to receive your detailed clinical results. - Blood Bank Hub`;
+      msgType = 'warning';
+    }
+
+    const smsResult = await sendSMS(sample.donor.phone, smsMessage, id, msgType);
+
+    await logAction(
       req.user.id,
       status === 'validated' ? 'BLOOD_SAMPLE_VALIDATED' : 'BLOOD_SAMPLE_DISCARDED',
-      `Screened blood sample ${id} for donor ${sample.donor.name} (${sample.fayda_id}). Status: ${status}.`
+      `Screened blood sample ${id} for donor ${sample.donor.name} (${sample.fayda_id}). Status: ${status}, Verified Blood Type: ${finalBloodType}.`
     );
  
     res.json({
