@@ -238,3 +238,52 @@ async function getAnnouncements(req, res) {
     res.status(500).json({ error: 'Failed to retrieve active announcements' });
   }
 }
+// Send emergency SMS alerts to eligible donors with specific blood type
+async function sendEmergencyStockAlert(req, res) {
+  const { blood_type } = req.body;
+
+  if (!blood_type) {
+    return res.status(400).json({ error: 'Blood Type is required' });
+  }
+
+  try {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Fetch matching donors who have not donated in the past 90 days and are healthy/unknown
+    const eligibleDonors = await mainDb.donor.findMany({
+      where: {
+        blood_type,
+        health_status: { not: 'defective' },
+        OR: [
+          { last_donation_date: null },
+          { last_donation_date: { lte: ninetyDaysAgo } }
+        ]
+      }
+    });
+
+    if (eligibleDonors.length === 0) {
+      return res.status(200).json({
+        message: `No eligible ${blood_type} donors found in database.`,
+        sentCount: 0
+      });
+    }
+
+    let sentCount = 0;
+    for (const d of eligibleDonors) {
+      const smsMessage = `EMERGENCY ALERT: Blood Bank Hub is currently experiencing a critical shortage of ${blood_type} blood stock! As an eligible donor, your donation can save lives. Please visit a collection station immediately. - Blood Bank Hub`;
+      const result = await sendSMS(d.phone, smsMessage, null, 'emergency_alert');
+      if (result.success) {
+        sentCount++;
+      }
+    }
+
+    res.json({
+      message: `Emergency SMS alerts dispatched successfully to ${sentCount} eligible ${blood_type} donors.`,
+      sentCount
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to process emergency donor alerts' });
+  }
+}
