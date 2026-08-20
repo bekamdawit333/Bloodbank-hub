@@ -24,4 +24,32 @@ export const labApi = {
     });
     return handleResponse(response);
   },
+  getLabRecords: async () => {
+    const response = await fetch(`${BASE_URL}/lab/records`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  getDonorPoints: async () => {
+    const response = await fetch(`${BASE_URL}/lab/points`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  getInventoryOut: async () => {
+    const response = await fetch(`${BASE_URL}/lab/inventory-out`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  getLabReports: async () => {
+    const response = await fetch(`${BASE_URL}/lab/reports`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
 };
