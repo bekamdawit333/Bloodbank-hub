@@ -287,3 +287,38 @@ async function sendEmergencyStockAlert(req, res) {
     res.status(500).json({ error: 'Failed to process emergency donor alerts' });
   }
 }
+async function getExpiringBags(req, res) {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyFiveDaysAgo = new Date();
+    thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+    const expiring = await mainDb.bloodSample.findMany({
+      where: {
+        status: 'validated',
+        collected_at: {
+          lte: thirtyDaysAgo,
+          gte: thirtyFiveDaysAgo
+        }
+      },
+      orderBy: { collected_at: 'asc' }
+    });
+
+    res.json(expiring);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve expiring blood bags' });
+  }
+}
+
+module.exports = {
+  getStockLevels,
+  getIncomingRequests,
+  fulfillHospitalRequest,
+  createAnnouncement,
+  getWarehouseAnnouncements,
+  getAnnouncements,
+  sendEmergencyStockAlert,
+  getExpiringBags
+};
