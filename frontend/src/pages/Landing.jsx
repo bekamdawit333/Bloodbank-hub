@@ -251,4 +251,157 @@ export default function Landing({ onNavigateToLogin, onNavigateToRegister }) {
       )}
     </div>
   );
+        {/* Hero Section with Microscope Background Video */}
+      <section style={{ 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        textAlign: 'center', 
+        padding: '100px 24px 80px 24px',
+        maxWidth: '960px',
+        margin: '0 auto',
+        zIndex: 5
+      }} className="animate-fade-in hero-3d-container">
+        
+
+
+        {/* Badge Indicator */}
+        <div style={{ 
+          background: 'rgba(239,35,60,0.08)', 
+          border: '1px solid rgba(239,35,60,0.15)', 
+          color: 'var(--primary)', 
+          padding: '6px 16px', 
+          borderRadius: '30px', 
+          fontSize: '0.78rem', 
+          fontWeight: 700, 
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase',
+          marginBottom: '24px',
+          zIndex: 2
+        }}>
+          🇪🇹 Ethiopian National Blood Services Network
+        </div>
+
+        {/* 3D Hero Title block */}
+        <div className="hero-3d-card" style={{ padding: '10px', zIndex: 2 }}>
+          <h1 style={{ 
+            fontSize: '3.6rem', 
+            fontWeight: 900, 
+            lineHeight: 1.1, 
+            letterSpacing: '-1.8px', 
+            marginBottom: '24px',
+            color: 'var(--text-primary)'
+          }}>
+            Life-Saving Blood,<br />
+            Synchronized in <span style={{ color: 'var(--primary)' }}>Real-Time</span>.
+          </h1>
+        </div>
+
+        <p style={{ 
+          fontSize: '1.2rem', 
+          lineHeight: 1.6, 
+          color: 'var(--text-secondary)', 
+          marginBottom: '40px',
+          maxWidth: '750px',
+          zIndex: 2
+        }}>
+          Connecting regional blood networks with the National FAYDA Registry to deliver faster care, better donor coordination, and life-saving support when every minute matters.
+        </p>
+
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', zIndex: 2 }}>
+          <button 
+            onClick={onNavigateToLogin}
+            className="btn btn-primary"
+            style={{ 
+              padding: '14px 28px', 
+              fontSize: '1rem', 
+              fontWeight: 'bold', 
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              boxShadow: '0 8px 24px rgba(239,35,60,0.2)'
+            }}
+          >
+            Enter Workstation Portal <ArrowRight size={18} />
+          </button>
+          <button 
+            onClick={onNavigateToRegister}
+            className="btn"
+            style={{ 
+              padding: '14px 28px', 
+              fontSize: '1rem', 
+              fontWeight: 'bold', 
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-surface)'
+            }}
+          >
+            Register Donor Profile
+          </button>
+        </div>
+      </section>
+
+      {/* NEW SECTION: Standard Blood Bank Tasks & Services */}
+      <section style={{ 
+        background: 'var(--bg-main)', 
+        borderTop: '1px solid var(--border-color)', 
+        padding: '80px 5%',
+        zIndex: 5
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{ fontSize: '2.2rem', fontWeight: 850, letterSpacing: '-0.7px', marginBottom: '12px' }}>
+              Core Blood Banking Life-Cycle & Services
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '650px', margin: '0 auto', fontSize: '1rem' }}>
+              Standard operational procedures deployed nationwide to guarantee optimal patient safety and fluid logistics.
+            </p>
+          </div>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+            gap: '24px' 
+          }}>
+            
+            {/* Task 1: Donation Drives & Recruitment */}
+            <div className="glass-card feature-3d-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: 'rgba(239,35,60,0.06)', color: 'var(--primary)', width: '44px', height: '44px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={22} />
+              </div>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 'bold', margin: 0 }}>1. Recruitment & Donation Drives</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, margin: 0 }}>
+                Coordinating mobile collection drives and donor check-ins. Voluntary donors schedule slots online, validating medical thresholds automatically.
+              </p>
+            </div>
+
+            {/* Task 2: Testing & Screening */}
+            <div className="glass-card feature-3d-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: 'rgba(6,214,160,0.06)', color: '#06d6a0', width: '44px', height: '44px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldCheck size={22} />
+              </div>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 'bold', margin: 0 }}>2. Laboratory Disease Screening</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, margin: 0 }}>
+                Enforcing strict screening for ABO/Rh groups and infectious markers (HIV, Hepatitis B/C, Malaria, Syphilis) inside isolated lab databases.
+              </p>
+            </div>
+
+            {/* Task 3: Real-Time Distribution */}
+            <div className="glass-card feature-3d-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: 'rgba(131,56,236,0.06)', color: '#8338ec', width: '44px', height: '44px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Globe size={22} />
+              </div>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 'bold', margin: 0 }}>3. Emergency Dispatch Logistics</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, margin: 0 }}>
+                Fulfilling critical hospital dispatches. Regional facilities exchange emergency stocks via peer-to-peer boards and live WebSocket channels.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
 }
