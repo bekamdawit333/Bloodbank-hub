@@ -1,5 +1,4 @@
-// Use Vite environment variable when provided, otherwise fall back to localhost
-export const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:5000/api';
+export const BASE_URL = 'http://localhost:5000/api';
 
 export const getHeaders = () => {
   const token = sessionStorage.getItem('token');
