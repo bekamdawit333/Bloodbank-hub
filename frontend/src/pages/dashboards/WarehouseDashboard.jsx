@@ -152,4 +152,205 @@ export default function WarehouseDashboard({ tab, setTab }) {
       setAlertingType(null);
     }
   };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      
+      {/* Real-Time WebSocket Alerts */}
+      {alerts.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {alerts.map(alert => (
+            <div 
+              key={alert.id} 
+              style={{ 
+                background: 'rgba(239,71,111,0.1)', 
+                color: '#ef476f', 
+                padding: '12px 18px', 
+                borderRadius: '8px', 
+                border: '1px solid rgba(239,71,111,0.2)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                animation: 'slideIn 0.3s ease-out'
+              }}
+            >
+              <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{alert.message}</span>
+              <button 
+                onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
+                style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold', padding: '0 5px' }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {error && (
+        <div className="glass-card" style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '16px', border: '1px solid rgba(239,35,60,0.2)' }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="glass-card" style={{ background: 'rgba(58,134,255,0.1)', color: '#3a86ff', padding: '16px', border: '1px solid rgba(58,134,255,0.2)' }}>
+          {success}
+        </div>
+      )}
+
+      {/* INVENTORY WORKSPACE */}
+      {tab === 'inventory' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 4fr', gap: '30px', alignItems: 'start' }}>
+          
+          {/* Stock inventory grid & Expiring Soon panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            <div className="glass-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Package size={20} color="var(--primary)" />
+                  <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Central Stock Inventory</h3>
+                </div>
+                <button onClick={loadData} className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+                {stock.map((item, idx) => {
+                  const isLow = item.quantity < 5;
+                  return (
+                    <div key={idx} style={{ 
+                      background: isLow ? 'rgba(239,35,60,0.02)' : 'rgba(255,255,255,0.01)', 
+                      border: isLow ? '1px solid rgba(239,35,60,0.15)' : '1px solid rgba(255,255,255,0.05)',
+                      padding: '14px', 
+                      borderRadius: '8px', 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="badge-blood-type" style={{ fontSize: '1rem', padding: '6px 12px' }}>{item.blood_type}</span>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: '800', color: item.quantity > 0 ? '#06d6a0' : 'var(--text-secondary)' }}>
+                            {item.quantity}
+                          </div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>blood bags</div>
+                        </div>
+                      </div>
+
+                      {isLow && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239,35,60,0.05)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(239,35,60,0.1)', marginTop: '4px' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#ef233c', fontWeight: 'bold' }}>⚠️ Low Stock</span>
+                          <button
+                            onClick={() => handleSendEmergencyAlert(item.blood_type)}
+                            disabled={alertingType !== null}
+                            className="btn btn-primary"
+                            style={{ 
+                              padding: '3px 8px', 
+                              fontSize: '0.7rem', 
+                              background: '#ef233c', 
+                              borderColor: '#ef233c',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            {alertingType === item.blood_type ? (
+                              'Sending...'
+                            ) : (
+                              <>
+                                <Send size={10} /> Alert Donors
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Expiring Soon panel */}
+            <div className="glass-card" style={{ border: (expiringBags || []).length > 0 ? '1px solid rgba(239,35,60,0.25)' : '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <ShieldAlert size={20} color={(expiringBags || []).length > 0 ? '#ef233c' : 'var(--text-secondary)'} />
+                <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Expiring Soon (5 Days or Less)</h3>
+              </div>
+
+              {(expiringBags || []).length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No blood bags currently close to expiration.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <p style={{ color: '#ef233c', fontSize: '0.78rem', fontWeight: 600, margin: '0 0 4px 0' }}>
+                    ⚠️ The following blood bags must be utilized or dispatched beforehand to prevent spoilage:
+                  </p>
+                  {(expiringBags || []).map((bag, idx) => {
+                    const expiryDate = new Date(new Date(bag.collected_at).getTime() + 35 * 24 * 60 * 60 * 1000);
+                    const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={idx} style={{ 
+                        background: 'rgba(239,35,60,0.03)', 
+                        border: '1px solid rgba(239,35,60,0.12)', 
+                        padding: '12px', 
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                            Blood Bag ID: <span style={{ fontFamily: 'monospace', color: 'var(--primary)' }}>{bag.id.substring(0, 8)}</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            Collected: {new Date(bag.collected_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span className="badge-blood-type" style={{ marginRight: '8px', padding: '3px 8px', fontSize: '0.75rem' }}>{bag.blood_type}</span>
+                          <span style={{ fontSize: '0.78rem', color: '#ef233c', fontWeight: 'bold' }}>
+                            {daysLeft} days left
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Hospital dispatch queue */}
+          <div className="glass-card">
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Hospital Requisition queue</h3>
+            {requests.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>No pending hospital requisition orders.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Hospital Facility</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Stock Status</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requests.map(r => {
+                      const availableStock = stock.find(s => s.blood_type === r.blood_type)?.quantity || 0;
+                      const hasSufficient = availableStock >= r.units_needed;
+    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
+
