@@ -1,4 +1,4 @@
-﻿const { mainDb } = require('../config/prisma');
+const { mainDb } = require('../config/prisma');
 async function getDonorDashboardInfo(req, res) {
   try {
     
@@ -138,6 +138,19 @@ async function bookAppointment(req, res) {
     }
 
     const apptTime = new Date(date_time);
+
+    // Enforce 3-month (90-day) deferral period between donations
+    if (donor.last_donation_date) {
+      const lastDonation = new Date(donor.last_donation_date);
+      const nextEligible = new Date(lastDonation.getTime() + 90 * 24 * 60 * 60 * 1000);
+      if (apptTime < nextEligible) {
+        const daysRemaining = Math.ceil((nextEligible - new Date()) / (1000 * 60 * 60 * 24));
+        return res.status(400).json({
+          error: `Ineligible to schedule donation yet. You must wait 3 months (90 days) between blood donations. You will be eligible on ${nextEligible.toLocaleDateString()} (${daysRemaining} days remaining).`
+        });
+      }
+    }
+
     const bufferMin = 30;
     const startRange = new Date(apptTime.getTime() - bufferMin * 60 * 1000);
     const endRange = new Date(apptTime.getTime() + bufferMin * 60 * 1000);
@@ -227,10 +240,89 @@ async function getStationsList(req, res) {
   }
 }
 
+async function getDonorMessages(req, res) {
+  try {
+    const donor = await mainDb.donor.findUnique({
+      where: { user_id: req.user.id }
+    });
+
+    const messages = [];
+
+    if (donor) {
+      const smsLogs = await mainDb.sentSmsLog.findMany({
+        where: { phone: donor.phone },
+        orderBy: { created_at: 'desc' }
+      });
+
+      smsLogs.forEach(s => {
+        messages.push({
+          id: s.id,
+          title: s.message_type === 'encouragement' 
+            ? 'Screening Validated & Next Steps' 
+            : s.message_type === 'warning' 
+            ? 'Confidential Clinical Screening Notice' 
+            : 'Donation Check-in Confirmation',
+          sender: 'Blood Bank Hub Medical Team',
+          content: s.message,
+          date: s.created_at,
+          unread: false,
+          type: s.message_type || 'sms'
+        });
+      });
+    }
+
+    const announcements = await mainDb.announcement.findMany({
+      orderBy: { created_at: 'desc' },
+      take: 5
+    });
+
+    announcements.forEach(a => {
+      messages.push({
+        id: a.id,
+        title: a.title,
+        sender: 'National Blood Bank Service',
+        content: a.content,
+        date: a.created_at,
+        unread: false,
+        type: 'campaign'
+      });
+    });
+
+    if (messages.length === 0) {
+      messages.push(
+        {
+          id: 'msg-welcome',
+          title: 'Welcome to Blood Bank Hub',
+          sender: 'National Blood Bank System',
+          content: 'Thank you for registering as a dedicated blood donor. Your profile is active and ready to save lives.',
+          date: new Date(),
+          unread: true,
+          type: 'system'
+        },
+        {
+          id: 'msg-campaign',
+          title: 'Urgent Regional Mega Donation Drive',
+          sender: 'Addis Ababa Central Station',
+          content: 'We invite you to participate in our upcoming weekend blood drive. Refreshments, certificates, and loyalty points will be provided.',
+          date: new Date(),
+          unread: false,
+          type: 'campaign'
+        }
+      );
+    }
+
+    res.json(messages);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch donor messages' });
+  }
+}
+
 module.exports = {
   getDonorDashboardInfo,
   bookAppointment,
   getAppointments,
   cancelAppointment,
-  getStationsList
+  getStationsList,
+  getDonorMessages,
 };
