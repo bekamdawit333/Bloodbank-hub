@@ -12,4 +12,3 @@ router.get('/reset-requests', authenticateToken, requireRole(['admin']), adminCo
 router.post('/reset-requests/:id/resolve', authenticateToken, requireRole(['admin']), adminController.resolvePasswordResetRequest);
 
 module.exports = router;
-
