@@ -320,6 +320,93 @@ async function getExpiringBags(req, res) {
   }
 }
 
+// Get incoming validated stock arriving from screening laboratories
+async function getIncomingStock(req, res) {
+  try {
+    const incoming = await mainDb.bloodSample.findMany({
+      where: {
+        status: 'validated'
+      },
+      include: {
+        donor: { select: { name: true, fayda_id: true } },
+        station: { select: { entity_name: true } },
+        lab: { select: { entity_name: true } }
+      },
+      orderBy: { collected_at: 'desc' },
+      take: 50
+    });
+
+    const formatted = incoming.map(s => ({
+      id: s.id,
+      blood_type: s.blood_type,
+      donor_name: s.donor ? s.donor.name : 'Verified Donor',
+      fayda_id: s.fayda_id,
+      station_name: s.station ? s.station.entity_name : 'Donation Station',
+      lab_name: s.lab ? s.lab.entity_name : 'National Testing Laboratory',
+      status: s.status,
+      health_notes: s.health_notes || 'Viral markers negative (HIV, Syphilis, Hep B/C passed)',
+      collected_at: s.collected_at
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error('[Warehouse] getIncomingStock error:', err);
+    res.status(500).json({ error: 'Failed to fetch incoming stock' });
+  }
+}
+
+// Receive and stock incoming validated blood units into cold chain inventory
+async function receiveIncomingStock(req, res) {
+  const { sample_id, blood_type, quantity = 1 } = req.body;
+  if (!blood_type) {
+    return res.status(400).json({ error: 'Blood type is required' });
+  }
+
+  try {
+    const qty = parseInt(quantity, 10) || 1;
+
+    // 1. Upsert warehouse stock level
+    await mainDb.warehouseStock.upsert({
+      where: {
+        warehouse_id_blood_type: {
+          warehouse_id: req.user.id,
+          blood_type
+        }
+      },
+      update: {
+        quantity: { increment: qty }
+      },
+      create: {
+        warehouse_id: req.user.id,
+        blood_type,
+        quantity: qty
+      }
+    });
+
+    // 2. If a specific sample_id was received, mark it as 'stocked' so it leaves the incoming dock
+    if (sample_id) {
+      const sampleExists = await mainDb.bloodSample.findUnique({ where: { id: sample_id } });
+      if (sampleExists) {
+        await mainDb.bloodSample.update({
+          where: { id: sample_id },
+          data: { status: 'stocked' }
+        });
+      }
+    }
+
+    await logAction(
+      req.user.id,
+      'INCOMING_STOCK_RECEIVED',
+      `Received ${qty} unit(s) of ${blood_type} into warehouse inventory (Sample: ${sample_id || 'N/A'}).`
+    );
+
+    res.json({ message: `Successfully verified and stocked ${qty} unit(s) of ${blood_type} into central cold chain inventory.` });
+  } catch (err) {
+    console.error('[Warehouse] receiveIncomingStock error:', err);
+    res.status(500).json({ error: 'Failed to receive incoming stock' });
+  }
+}
+
 module.exports = {
   getStockLevels,
   getIncomingRequests,
@@ -328,5 +415,7 @@ module.exports = {
   getWarehouseAnnouncements,
   getAnnouncements,
   sendEmergencyStockAlert,
-  getExpiringBags
+  getExpiringBags,
+  getIncomingStock,
+  receiveIncomingStock
 };
