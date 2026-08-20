@@ -83,3 +83,68 @@ async function fulfillHospitalRequest(req, res) {
     res.status(500).json({ error: 'Failed to process request fulfillment' });
   }
 }
+    // Execute fulfillment transaction
+    await mainDb.$transaction(async (tx) => {
+      // 1. Decrement warehouse stock
+      await tx.warehouseStock.update({
+        where: {
+          warehouse_id_blood_type: {
+            warehouse_id: req.user.id,
+            blood_type: request.blood_type
+          }
+        },
+        data: {
+          quantity: { decrement: request.units_needed }
+        }
+      });
+
+      // 2. Increment hospital stock
+      await tx.hospitalStock.upsert({
+        where: {
+          hospital_id_blood_type: {
+            hospital_id: request.hospital_id,
+            blood_type: request.blood_type
+          }
+        },
+        update: {
+          quantity: { increment: request.units_needed }
+        },
+        create: {
+          hospital_id: request.hospital_id,
+          blood_type: request.blood_type,
+          quantity: request.units_needed
+        }
+      });
+
+      // Find oldest validated samples of the requested blood type in the warehouse
+      const availableSamples = await tx.bloodSample.findMany({
+        where: {
+          blood_type: request.blood_type,
+          status: 'validated',
+          hospital_id: null
+        },
+        orderBy: {
+          collected_at: 'asc'
+        },
+        take: request.units_needed
+      });
+
+      // Update their hospital_id to request.hospital_id
+      if (availableSamples.length > 0) {
+        const sampleIds = availableSamples.map(s => s.id);
+        await tx.bloodSample.updateMany({
+          where: {
+            id: { in: sampleIds }
+          },
+          data: {
+            hospital_id: request.hospital_id
+          }
+        });
+      }
+
+      // 3. Mark request as fulfilled
+      await tx.hospitalRequest.update({
+        where: { id },
+        data: { status: 'fulfilled' }
+      });
+    });
