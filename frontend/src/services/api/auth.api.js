@@ -76,4 +76,19 @@ export const authApi = {
     });
     return handleResponse(response);
   },
+  getProfile: async () => {
+    const response = await fetch(`${BASE_URL}/auth/profile`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await fetch(`${BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return handleResponse(response);
+  },
 };
