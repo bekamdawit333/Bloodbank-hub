@@ -167,3 +167,39 @@ async function fulfillHospitalRequest(req, res) {
     }
  
     res.json({ message: 'Request fulfilled successfully. Inventory dispatched.' });
+    // Create announcement
+async function createAnnouncement(req, res) {
+  const { title, content, type, station_location, start_date, end_date } = req.body;
+
+  if (!title || !content) {
+    return res.status(400).json({ error: 'Title and content are required' });
+  }
+
+  try {
+    const announcement = await mainDb.announcement.create({
+      data: {
+        title,
+        content,
+        type: type || 'campaign',
+        station_location: station_location || null,
+        start_date: start_date ? new Date(start_date) : null,
+        end_date: end_date ? new Date(end_date) : null,
+        warehouse_id: req.user.id
+      }
+    });
+
+    await logAction(
+      req.user.id,
+      'CAMPAIGN_ANNOUNCEMENT_CREATED',
+      `Created campaign announcement: "${title}" (${type || 'campaign'}).`
+    );
+ 
+    res.status(201).json({
+      message: 'Announcement published successfully',
+      announcement
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+}
