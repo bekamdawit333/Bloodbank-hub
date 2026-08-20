@@ -1,4 +1,3 @@
-﻿
 import React from 'react';
 import { BarChart3, PieChart, AlertCircle } from 'lucide-react';
 
