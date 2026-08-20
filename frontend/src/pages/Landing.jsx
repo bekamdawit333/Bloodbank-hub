@@ -249,8 +249,8 @@ export default function Landing({ onNavigateToLogin, onNavigateToRegister }) {
           </button>
         </div>
       )}
-    </div>
-  );
+    
+  
         {/* Hero Section with Microscope Background Video */}
       <section style={{ 
         flex: 1, 
@@ -404,4 +404,82 @@ export default function Landing({ onNavigateToLogin, onNavigateToRegister }) {
           </div>
         </div>
       </section>
+            {/* Feature Grid Section (Platform Features) */}
+      <section style={{ 
+        background: 'var(--bg-surface)', 
+        borderTop: '1px solid var(--border-color)', 
+        padding: '80px 5%',
+        zIndex: 5
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '12px' }}>
+              System Integration Features
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
+              Advanced software configurations connecting collection drives, screening centers, and critical emergency boards.
+            </p>
+          </div>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+            gap: '30px' 
+          }}>
+            
+            {/* Feature 1 */}
+            <div className="glass-card feature-3d-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'rgba(239,35,60,0.08)', color: 'var(--primary)', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Activity size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Real-Time Hub Requisitions</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>
+                Connects regional Red Cross clinics with Central Warehouses. Requisition orders notify warehouse dispatchers instantly via socket channels.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="glass-card feature-3d-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'rgba(6,214,160,0.08)', color: '#06d6a0', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldCheck size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Clinical Screen Isolation</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>
+                Maintains separated database registries for platelet levels, diseases screening, and tested blood types. Results sync to FAYDA profiles.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="glass-card feature-3d-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'rgba(58,134,255,0.08)', color: '#3a86ff', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CloudLightning size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>IndexedDB Mobile Offline Caching</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>
+                Supports remote station campaigns during regional grid outages. Screenings cache locally in browser IndexedDB, syncing automatically on reconnection.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ 
+        padding: '30px 5%', 
+        borderTop: '1px solid var(--border-color)', 
+        background: 'var(--bg-surface)', 
+        textAlign: 'center',
+        fontSize: '0.82rem',
+        color: 'var(--text-muted)',
+        zIndex: 5
+      }}>
+        <p style={{ margin: 0 }}>
+          &copy; {new Date().getFullYear()} Ethiopian National Blood Bank Service Coordination Registry. Developed for healthcare providers.
+        </p>
+      </footer>
+
+    </div>
+  );
 }
