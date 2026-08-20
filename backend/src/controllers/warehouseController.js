@@ -18,6 +18,7 @@ async function getStockLevels(req, res) {
     res.status(500).json({ error: 'Failed to retrieve stock levels' });
   }
 }
+
 // Get pending hospital requests
 async function getIncomingRequests(req, res) {
   try {
@@ -45,6 +46,7 @@ async function getIncomingRequests(req, res) {
     res.status(500).json({ error: 'Failed to fetch incoming hospital requests' });
   }
 }
+
 // Fulfill hospital request: reduces warehouse stock and increments hospital stock
 async function fulfillHospitalRequest(req, res) {
   const { id } = req.params;
@@ -78,11 +80,7 @@ async function fulfillHospitalRequest(req, res) {
         error: `Insufficient inventory. Available: ${availableQty} units of ${request.blood_type}`
       });
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to process request fulfillment' });
-  }
-}
+
     // Execute fulfillment transaction
     await mainDb.$transaction(async (tx) => {
       // 1. Decrement warehouse stock
@@ -148,7 +146,8 @@ async function fulfillHospitalRequest(req, res) {
         data: { status: 'fulfilled' }
       });
     });
-        await logAction(
+
+    await logAction(
       req.user.id,
       'HOSPITAL_REQUEST_FULFILLED',
       `Fulfilled request ${id} for hospital ${request.hospital.entity_name}. Quantity: ${request.units_needed} bags of type ${request.blood_type}.`
@@ -167,7 +166,13 @@ async function fulfillHospitalRequest(req, res) {
     }
  
     res.json({ message: 'Request fulfilled successfully. Inventory dispatched.' });
-    // Create announcement
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to process request fulfillment' });
+  }
+}
+
+// Create announcement
 async function createAnnouncement(req, res) {
   const { title, content, type, station_location, start_date, end_date } = req.body;
 
@@ -203,6 +208,7 @@ async function createAnnouncement(req, res) {
     res.status(500).json({ error: 'Failed to create announcement' });
   }
 }
+
 // Get announcements published by this warehouse
 async function getWarehouseAnnouncements(req, res) {
   try {
@@ -238,6 +244,7 @@ async function getAnnouncements(req, res) {
     res.status(500).json({ error: 'Failed to retrieve active announcements' });
   }
 }
+
 // Send emergency SMS alerts to eligible donors with specific blood type
 async function sendEmergencyStockAlert(req, res) {
   const { blood_type } = req.body;
@@ -287,6 +294,7 @@ async function sendEmergencyStockAlert(req, res) {
     res.status(500).json({ error: 'Failed to process emergency donor alerts' });
   }
 }
+
 async function getExpiringBags(req, res) {
   try {
     const thirtyDaysAgo = new Date();
