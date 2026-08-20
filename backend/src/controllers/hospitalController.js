@@ -1,4 +1,4 @@
-﻿const { mainDb, labDb } = require("../config/prisma");
+const { mainDb, labDb } = require("../config/prisma");
 
 // Get this hospital's internal stock levels
 async function getHospitalStock(req, res) {
