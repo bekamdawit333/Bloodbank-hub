@@ -52,4 +52,19 @@ export const warehouseApi = {
     });
     return handleResponse(response);
   },
+  getIncomingStock: async () => {
+    const response = await fetch(`${BASE_URL}/warehouse/incoming-stock`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  receiveStock: async (stockData) => {
+    const response = await fetch(`${BASE_URL}/warehouse/receive-stock`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(stockData),
+    });
+    return handleResponse(response);
+  },
 };
