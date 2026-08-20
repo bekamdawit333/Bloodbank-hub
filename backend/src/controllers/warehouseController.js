@@ -203,3 +203,38 @@ async function createAnnouncement(req, res) {
     res.status(500).json({ error: 'Failed to create announcement' });
   }
 }
+// Get announcements published by this warehouse
+async function getWarehouseAnnouncements(req, res) {
+  try {
+    const announcements = await mainDb.announcement.findMany({
+      where: { warehouse_id: req.user.id },
+      orderBy: { created_at: 'desc' }
+    });
+    res.json(announcements);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve announcements' });
+  }
+}
+
+// Get all announcements (for donors dashboard)
+async function getAnnouncements(req, res) {
+  try {
+    const announcements = await mainDb.announcement.findMany({
+      include: {
+        warehouse: { select: { entity_name: true } }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    const formatted = announcements.map(a => ({
+      ...a,
+      publisher: a.warehouse.entity_name
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve active announcements' });
+  }
+}
