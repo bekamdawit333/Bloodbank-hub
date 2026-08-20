@@ -1,4 +1,4 @@
-const { mainDb } = require("../config/prisma");
+const { mainDb } = require('../config/prisma');
 
 // Helper to send SMS via SMSEthiopia API
 async function sendSMS(phone, message, sampleId, type) {
@@ -9,23 +9,21 @@ async function sendSMS(phone, message, sampleId, type) {
         where: {
           blood_sample_id_message_type: {
             blood_sample_id: sampleId,
-            message_type: type,
-          },
-        },
+            message_type: type
+          }
+        }
       });
 
       if (checkLog) {
-        console.log(
-          `[SMS Safeguard] Blocked duplicate SMS of type '${type}' for sample ${sampleId}`,
-        );
-        return { success: false, reason: "Duplicate prevented" };
+        console.log(`[SMS Safeguard] Blocked duplicate SMS of type '${type}' for sample ${sampleId}`);
+        return { success: false, reason: 'Duplicate prevented' };
       }
     }
 
     const apiKey = process.env.SMS_ETHIOPIA_KEY;
 
     // Mock send if key is mock-key or not configured
-    if (!apiKey || apiKey === "mock-key") {
+    if (!apiKey || apiKey === 'mock-key') {
       console.log(`\n======================================================`);
       console.log(`[SMS ETHIOPIA MOCK SEND]`);
       console.log(`Phone: ${phone}`);
@@ -39,35 +37,33 @@ async function sendSMS(phone, message, sampleId, type) {
           data: {
             phone,
             blood_sample_id: sampleId,
-            message_type: type,
-          },
+            message_type: type
+          }
         });
       }
       return { success: true, mock: true };
     }
 
     // Call real SMSEthiopia API
-    const response = await fetch("https://smsethiopia.com/api/sms/send", {
-      method: "POST",
+    const response = await fetch('https://smsethiopia.com/api/sms/send', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        KEY: apiKey,
+        'Content-Type': 'application/json',
+        'KEY': apiKey
       },
       body: JSON.stringify({
-        msisdn: phone.replace("+", "").replace(/^0/, "251"),
-        text: message,
-      }),
+        msisdn: phone.replace('+', '').replace(/^0/, '251'),
+        text: message
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `HTTP error! status: ${response.status} response: ${errorText}`,
-      );
+      throw new Error(`HTTP error! status: ${response.status} response: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("[SMSEthiopia Response]:", data);
+    console.log('[SMSEthiopia Response]:', data);
 
     // Save log if sampleId is provided
     if (sampleId) {
@@ -75,30 +71,28 @@ async function sendSMS(phone, message, sampleId, type) {
         data: {
           phone,
           blood_sample_id: sampleId,
-          message_type: type,
-        },
+          message_type: type
+        }
       });
     }
 
     return { success: true };
   } catch (err) {
-    console.error("[SMS Send Error]:", err.message);
-
+    console.error('[SMS Send Error]:', err.message);
+    
     // Add to SmsQueue for offline/delivery retry queue
     try {
       await mainDb.smsQueue.create({
         data: {
           phone,
           message,
-          status: "failed",
-          last_error: err.message,
-        },
+          status: 'failed',
+          last_error: err.message
+        }
       });
-      console.log(
-        `[SMS Queue] Enqueued failed SMS to ${phone} for later retry.`,
-      );
+      console.log(`[SMS Queue] Enqueued failed SMS to ${phone} for later retry.`);
     } catch (queueErr) {
-      console.error("[SMS Queue DB Save Error]:", queueErr.message);
+      console.error('[SMS Queue DB Save Error]:', queueErr.message);
     }
 
     return { success: false, error: err.message };
