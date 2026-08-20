@@ -8,7 +8,9 @@ async function getUsers(req, res) {
   try {
     const users = await mainDb.user.findMany({
       where: {
-        NOT: { role: 'admin' }
+        role: {
+          notIn: ['admin', 'donor']
+        }
       },
       select: {
         id: true,

@@ -99,6 +99,7 @@ export default function AdminDashboard({ tab, setTab }) {
 
 
   const filteredUsers = users.filter(u => {
+    if (u.role === 'donor') return false;
     if (registryCategory === 'all') return true;
     if (registryCategory === 'laboratory') return u.role === 'laboratory';
     if (registryCategory === 'station') return u.role === 'station';
@@ -130,7 +131,7 @@ export default function AdminDashboard({ tab, setTab }) {
               let count = 0;
               if (cat === 'all') {
                 label = 'All Workstations';
-                count = users.length;
+                count = users.filter(u => u.role !== 'donor').length;
               } else if (cat === 'laboratory') {
                 label = '🔬 Laboratory';
                 count = users.filter(u => u.role === 'laboratory').length;
@@ -139,7 +140,7 @@ export default function AdminDashboard({ tab, setTab }) {
                 count = users.filter(u => u.role === 'station').length;
               } else {
                 label = '⚙️ Hospitals & Warehouses';
-                count = users.filter(u => u.role !== 'laboratory' && u.role !== 'station').length;
+                count = users.filter(u => u.role !== 'donor' && u.role !== 'laboratory' && u.role !== 'station').length;
               }
 
               return (
