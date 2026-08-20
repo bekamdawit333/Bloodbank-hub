@@ -1,4 +1,4 @@
-﻿const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { mainDb } = require("../config/prisma");
 const { JWT_SECRET } = require("../middleware/auth");
@@ -591,6 +591,40 @@ async function resetPasswordDonor(req, res) {
   }
 }
 
+// 9. Change Password (Authenticated for all actors)
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "Current password and new password are required." });
+  }
+
+  try {
+    const user = await mainDb.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User account not found." });
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({ error: "Current password is incorrect." });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await mainDb.user.update({
+      where: { id: req.user.id },
+      data: { password_hash: newHash }
+    });
+
+    res.json({ message: "Password updated successfully." });
+  } catch (err) {
+    console.error("[authController] changePassword error:", err);
+    res.status(500).json({ error: "Failed to update password." });
+  }
+}
+
 module.exports = {
   registerVerifyEmail,
   verifyCode,
@@ -600,4 +634,5 @@ module.exports = {
   faydaLookup,
   forgotPassword,
   resetPasswordDonor,
+  changePassword,
 };
