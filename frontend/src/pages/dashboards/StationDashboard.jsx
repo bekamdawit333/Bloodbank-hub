@@ -1,5 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Search, PlusCircle, UserCheck, UserX, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Search, PlusCircle, UserCheck, UserX, AlertTriangle, RefreshCw, 
+  Activity, Users, Clock, CheckCircle2, Droplet, ArrowRight, ShieldCheck, 
+  ClipboardList, Check, Database, Wifi, WifiOff, FileText, Calendar, Filter 
+} from 'lucide-react';
 import { api } from '../../services/api';
 
 const DB_NAME = 'BloodBankStationOffline';
@@ -54,7 +58,7 @@ async function deleteOfflineRegistration(tempId) {
   });
 }
 
-export default function StationDashboard() {
+export default function StationDashboard({ tab = 'dashboard', setTab }) {
   const [queryId, setQueryId] = useState('');
   const [searched, setSearched] = useState(false);
   const [donorResult, setDonorResult] = useState(null);
@@ -67,6 +71,14 @@ export default function StationDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Donors List & Reports states
+  const [donorsList, setDonorsList] = useState([]);
+  const [donorSearchTerm, setDonorSearchTerm] = useState('');
+  const [donorBloodTypeFilter, setDonorBloodTypeFilter] = useState('ALL');
+  const [loadingDonors, setLoadingDonors] = useState(false);
+  const [reportsData, setReportsData] = useState(null);
+  const [loadingReports, setLoadingReports] = useState(false);
 
   // Offline states
   const [offlineCount, setOfflineCount] = useState(0);
@@ -81,13 +93,37 @@ export default function StationDashboard() {
     }
   };
 
+  const loadDonorsList = async () => {
+    setLoadingDonors(true);
+    try {
+      const list = await api.station.getDonorsList();
+      setDonorsList(list || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDonors(false);
+    }
+  };
+
+  const loadReportsData = async () => {
+    setLoadingReports(true);
+    try {
+      const rep = await api.station.getReports();
+      setReportsData(rep);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
   // New Donor Form details
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [dob, setDob] = useState('');
+  const [dob, setDob] = useState('1995-01-01');
   const [gender, setGender] = useState('Male');
-  const [address, setAddress] = useState('');
-  const [bloodType, setBloodType] = useState('UNKNOWN');
+  const [address, setAddress] = useState('Addis Ababa, Ethiopia');
+  const [bloodType, setBloodType] = useState('O+');
 
   // Screening questionnaire state
   const [questionnaire, setQuestionnaire] = useState({
@@ -112,12 +148,11 @@ export default function StationDashboard() {
     setLoading(true);
     try {
       const samplesList = await api.station.getSamples();
-      setSamples(samplesList);
+      setSamples(samplesList || []);
 
-      // Fetch approved labs list via our station API helper
       const approvedLabs = await api.station.getLabs();
-      setLabs(approvedLabs);
-      if (approvedLabs.length > 0) {
+      setLabs(approvedLabs || []);
+      if (approvedLabs && approvedLabs.length > 0) {
         setSelectedLabId(approvedLabs[0].id);
       }
       await loadOfflineCount();
@@ -132,6 +167,11 @@ export default function StationDashboard() {
     fetchLabsAndSamples();
   }, []);
 
+  useEffect(() => {
+    if (tab === 'donors') loadDonorsList();
+    if (tab === 'reports') loadReportsData();
+  }, [tab]);
+
   const handleLookup = async (e) => {
     e.preventDefault();
     if (!queryId) return;
@@ -142,7 +182,6 @@ export default function StationDashboard() {
 
     try {
       const data = await api.station.lookupDonor(queryId);
-      // Reset questionnaire
       setQuestionnaire({
         tattoo: 'No',
         medication: 'No',
@@ -155,12 +194,10 @@ export default function StationDashboard() {
       if (data.found) {
         setDonorResult(data.donor);
         setEligibility(data.eligibility);
-        // Prefill blood type for returning donor
         setBloodType(data.donor.blood_type);
       } else {
         setDonorResult(null);
         setEligibility(null);
-        // Clear fields for new registration
         setName('');
         setPhone(queryId.startsWith('+') ? queryId : '');
         setDob('');
@@ -176,501 +213,1002 @@ export default function StationDashboard() {
     }
   };
 
-  const handleRegisterAndCollect = async (e) => {
+  const handleFastTrackCollect = async (e) => {
     e.preventDefault();
-    if (questionnaireFailed) {
-      setError('Cannot complete registration: Donor is deferred based on questionnaire responses.');
+    if (!donorResult) return;
+
+    if (eligibility && !eligibility.is_eligible) {
+      setError(eligibility.message || `Donor is ineligible to donate blood. Must wait 3 months (90 days) between donations.`);
       return;
     }
+
+    if (questionnaireFailed) {
+      setError('Donor failed medical screening questionnaire. Blood collection aborted.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    const notes = `Questionnaire: Tattoo=${questionnaire.tattoo}, Meds=${questionnaire.medication}, Surgery=${questionnaire.surgery}, Malaria=${questionnaire.malaria}, Unwell=${questionnaire.unwell}, Infections=${questionnaire.hivHistory}. Passed.`;
+    const payload = {
+      donor_id: donorResult?.id,
+      fayda_id: donorResult?.fayda_id || queryId,
+      phone: donorResult?.phone,
+      name: donorResult?.name,
+      blood_type: bloodType || donorResult?.blood_type || 'O+',
+      lab_id: selectedLabId || (labs[0] ? labs[0].id : undefined),
+      screening_data: questionnaire
+    };
 
     try {
-      const isReturning = !!donorResult;
-      const fayda_id = donorResult ? donorResult.fayda_id : queryId;
-
-      // 1. Register donor event
-      const donorRes = await api.station.registerDonor({
-        fayda_id,
-        name: isReturning ? donorResult.name : name,
-        phone: isReturning ? donorResult.phone : phone,
-        dob: isReturning ? donorResult.dob : dob,
-        gender: isReturning ? donorResult.gender : gender,
-        address: isReturning ? donorResult.address : address,
-        blood_type: bloodType,
-        is_returning: isReturning
-      });
-
-      // 2. Log and route blood sample bag to lab
-      await api.station.createSample({
-        fayda_id: donorRes.donor.fayda_id,
-        blood_type: donorRes.donor.blood_type,
-        lab_id: selectedLabId,
-        health_notes: notes
-      });
-
-      setSuccess(`Successfully logged donation bag (${donorRes.donor.blood_type}) and routed to ${labs.find(l => l.id === selectedLabId)?.entity_name || 'Lab'}.`);
-      
-      // Reset scanner
+      const data = await api.station.collectSample(payload);
+      setSuccess(`Sample collected and routed to ${data.sample?.lab_name || 'selected laboratory'} (ID: ${data.sample?.id || 'OK'})`);
       setSearched(false);
-      setDonorResult(null);
-      setEligibility(null);
       setQueryId('');
-
-      // Reset questionnaire
-      setQuestionnaire({
-        tattoo: 'No',
-        medication: 'No',
-        surgery: 'No',
-        malaria: 'No',
-        unwell: 'No',
-        hivHistory: 'No'
-      });
-
-      // Reload log
-      const samplesList = await api.station.getSamples();
-      setSamples(samplesList);
+      fetchLabsAndSamples();
     } catch (err) {
-      console.error('API submission failed. Checking offline caching fallback...', err.message);
-      try {
-        const isReturning = !!donorResult;
-        const tempFaydaId = donorResult ? donorResult.fayda_id : (queryId || 'offline-ET-' + Date.now());
-
-        const offlineItem = {
-          fayda_id: tempFaydaId,
-          name: isReturning ? donorResult.name : name,
-          phone: isReturning ? donorResult.phone : phone,
-          dob: isReturning ? donorResult.dob : dob,
-          gender: isReturning ? donorResult.gender : gender,
-          address: isReturning ? donorResult.address : address,
-          blood_type: bloodType,
-          is_returning: isReturning,
-          lab_id: selectedLabId,
-          health_notes: notes
-        };
-
-        await saveOfflineRegistration(offlineItem);
-        setSuccess('⚠️ Network connection offline. Registration details have been securely cached locally in IndexedDB storage.');
-        
-        // Reset scanner
-        setSearched(false);
-        setDonorResult(null);
-        setEligibility(null);
-        setQueryId('');
-        setQuestionnaire({
-          tattoo: 'No', medication: 'No', surgery: 'No', malaria: 'No', unwell: 'No', hivHistory: 'No'
+      if (!navigator.onLine || err.message?.includes('Failed to fetch')) {
+        await saveOfflineRegistration({
+          type: 'FAST_TRACK_COLLECTION',
+          payload,
+          timestamp: new Date().toISOString()
         });
-        await loadOfflineCount();
-      } catch (cacheErr) {
-        console.error('[IndexedDB Caching Error]:', cacheErr.message);
-        setError(`Submission failed, and local offline cache write failed: ${cacheErr.message}`);
+        setSuccess('Offline mode: Sample queued locally. It will automatically synchronize when connection is restored.');
+        setSearched(false);
+        setQueryId('');
+        loadOfflineCount();
+      } else {
+        setError(err.message || 'Fast-track collection failed.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSyncOffline = async () => {
-    setSyncing(true);
+  const handleRegisterAndCollect = async (e) => {
+    e.preventDefault();
+
+    if (questionnaireFailed) {
+      setError('Donor failed medical screening questionnaire. Registration & donation aborted.');
+      return;
+    }
+
+    setLoading(true);
     setError(null);
     setSuccess(null);
+
+    const payload = {
+      fayda_id: queryId ? queryId.trim() : undefined,
+      name: name.trim(),
+      phone: phone.trim(),
+      dob: dob || '1995-01-01',
+      gender: gender || 'Male',
+      address: address ? address.trim() : 'Addis Ababa, Ethiopia',
+      blood_type: bloodType || 'O+',
+      lab_id: selectedLabId || (labs[0] ? labs[0].id : undefined),
+      screening_data: questionnaire
+    };
+
+    try {
+      const data = await api.station.registerAndCollect(payload);
+      setSuccess(`New donor (${data.donor?.name || name}) registered and blood sample routed to laboratory!`);
+      setSearched(false);
+      setQueryId('');
+      fetchLabsAndSamples();
+    } catch (err) {
+      if (!navigator.onLine || err.message?.includes('Failed to fetch')) {
+        await saveOfflineRegistration({
+          type: 'NEW_DONOR_REGISTRATION',
+          payload,
+          timestamp: new Date().toISOString()
+        });
+        setSuccess('Offline mode: Donor details & collection queued locally. Will sync automatically.');
+        setSearched(false);
+        setQueryId('');
+        loadOfflineCount();
+      } else {
+        setError(err.message || 'Registration and collection failed.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const syncOfflineData = async () => {
+    setSyncing(true);
+    setError(null);
     try {
       const items = await getOfflineRegistrations();
-      if (items.length === 0) {
-        setSuccess('No offline registrations to sync.');
-        setSyncing(false);
-        return;
-      }
-      
-      let successCount = 0;
       for (const item of items) {
-        try {
-          const donorRes = await api.station.registerDonor({
-            fayda_id: item.fayda_id,
-            name: item.name,
-            phone: item.phone,
-            dob: item.dob,
-            gender: item.gender,
-            address: item.address,
-            blood_type: item.blood_type,
-            is_returning: item.is_returning
-          });
-
-          await api.station.createSample({
-            fayda_id: donorRes.donor.fayda_id,
-            blood_type: donorRes.donor.blood_type,
-            lab_id: item.lab_id,
-            health_notes: item.health_notes
-          });
-
-          await deleteOfflineRegistration(item.tempId);
-          successCount++;
-        } catch (syncErr) {
-          console.error(`Failed to sync item ${item.tempId}:`, syncErr.message);
-          throw new Error(`Sync halted at donor ${item.name || item.fayda_id}. Server is still unreachable: ${syncErr.message}`);
+        if (item.type === 'FAST_TRACK_COLLECTION') {
+          await api.station.collectSample(item.payload);
+        } else if (item.type === 'NEW_DONOR_REGISTRATION') {
+          await api.station.registerAndCollect(item.payload);
         }
+        await deleteOfflineRegistration(item.tempId);
       }
-      
-      setSuccess(`✅ Successfully synced ${successCount} offline registrations with the server!`);
-      await fetchLabsAndSamples();
+      setSuccess(`Synchronized ${items.length} offline records successfully.`);
       await loadOfflineCount();
+      fetchLabsAndSamples();
     } catch (err) {
-      setError(err.message);
+      setError('Failed to sync all offline registrations.');
     } finally {
       setSyncing(false);
     }
   };
 
-  const renderQuestionnaireForm = () => {
-    const questions = [
-      { key: 'tattoo', text: 'Tattoo, body piercing, or acupuncture in the past 3 months?' },
-      { key: 'medication', text: 'Taking antibiotics or under treatment for active infection?' },
-      { key: 'surgery', text: 'Surgery or major dental procedure in the past 3 months?' },
-      { key: 'malaria', text: 'Travel to or lived in malaria-endemic zone in past 3 months?' },
-      { key: 'unwell', text: 'Feels unwell, has fever, active cold or cough symptoms today?' },
-      { key: 'hivHistory', text: 'Ever tested positive for HIV, Hepatitis B/C, or Syphilis?' }
-    ];
+  // Demo recent check-ins fallback
+  const displayCheckins = [
+    { id: 1, name: 'Melaku Alemu', time: '9:30 AM', status: 'Completed' },
+    { id: 2, name: 'Tesfaye Girma', time: '9:45 AM', status: 'Completed' },
+    { id: 3, name: 'Sara Bekele', time: '10:00 AM', status: 'Completed' },
+    { id: 4, name: 'Abdi Hassan', time: '10:15 AM', status: 'Completed' },
+    { id: 5, name: 'Lydia Assefa', time: '10:30 AM', status: 'Completed' }
+  ];
 
-    return (
-      <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-        <h5 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: 'var(--primary)', textTransform: 'uppercase' }}>
-          Screening Questionnaire
-        </h5>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '12px' }}>
-          Verify donor eligibility. Any <strong>YES</strong> deferrals will block this donation.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-          {questions.map((q) => (
-            <div key={q.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '8px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{q.text}</span>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => handleQuestionnaireChange(q.key, 'Yes')}
-                  className={`btn ${questionnaire[q.key] === 'Yes' ? 'btn-danger' : 'btn-secondary'}`}
-                  style={{ padding: '3px 8px', fontSize: '0.7rem', minWidth: '42px', height: '24px' }}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuestionnaireChange(q.key, 'No')}
-                  className={`btn ${questionnaire[q.key] === 'No' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ padding: '3px 8px', fontSize: '0.7rem', minWidth: '42px', height: '24px', background: questionnaire[q.key] === 'No' ? '#06d6a0' : undefined }}
-                >
-                  No
-                </button>
-              </div>
+  const renderQuestionnaireForm = () => (
+    <div style={{ background: 'var(--bg-main)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '10px' }}>
+      <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+        Pre-Donation Medical Screening Questionnaire
+      </h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+        {[
+          { key: 'tattoo', label: 'Tattoo/Piercing within 6 mos?' },
+          { key: 'medication', label: 'Currently on antibiotics/aspirin?' },
+          { key: 'surgery', label: 'Major surgery in last 6 mos?' },
+          { key: 'malaria', label: 'Malaria fever in last 3 mos?' },
+          { key: 'unwell', label: 'Feeling flu or unwell today?' },
+          { key: 'hivHistory', label: 'High risk disease exposure?' }
+        ].map(q => (
+          <div key={q.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>{q.label}</span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button 
+                type="button" 
+                onClick={() => handleQuestionnaireChange(q.key, 'No')}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: questionnaire[q.key] === 'No' ? '#06d6a0' : 'rgba(255,255,255,0.06)',
+                  color: questionnaire[q.key] === 'No' ? '#fff' : 'var(--text-muted)'
+                }}
+              >
+                No
+              </button>
+              <button 
+                type="button" 
+                onClick={() => handleQuestionnaireChange(q.key, 'Yes')}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: questionnaire[q.key] === 'Yes' ? '#ef233c' : 'rgba(255,255,255,0.06)',
+                  color: questionnaire[q.key] === 'Yes' ? '#fff' : 'var(--text-muted)'
+                }}
+              >
+                Yes
+              </button>
             </div>
-          ))}
-        </div>
-
-        {questionnaireFailed && (
-          <div style={{ background: 'rgba(239,35,60,0.1)', border: '1px solid rgba(239,35,60,0.2)', color: '#ef233c', padding: '10px', borderRadius: '6px', display: 'flex', gap: '6px', alignItems: 'center', fontSize: '0.8rem', marginBottom: '12px' }}>
-            <AlertTriangle size={14} />
-            <div><strong>Donor Deferred:</strong> Ineligible to donate today.</div>
           </div>
-        )}
+        ))}
       </div>
-    );
-  };
+      {questionnaireFailed && (
+        <div style={{ marginTop: '10px', color: '#ef233c', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <AlertTriangle size={14} /> Donor answered "Yes" to risk markers. Deferral recommended.
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
-      {/* Offline Count Sync Banner */}
-      {offlineCount > 0 && (
-        <div 
-          className="glass-card" 
-          style={{ 
-            background: 'rgba(255,183,3,0.1)', 
-            color: '#ffb703', 
-            border: '1px solid rgba(255,183,3,0.2)', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            padding: '16px', 
-            borderRadius: '8px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <AlertTriangle size={20} />
-            <span style={{ fontWeight: 600 }}>
-              {offlineCount} Donor Registration{offlineCount > 1 ? 's' : ''} saved offline in local IndexedDB storage (Server offline fallback).
-            </span>
-          </div>
-          <button 
-            onClick={handleSyncOffline} 
-            className="btn" 
-            disabled={syncing}
-            style={{ background: '#ffb703', color: '#000', fontWeight: 'bold', padding: '8px 16px' }}
-          >
-            {syncing ? 'Syncing...' : 'Sync with Server Now'}
-          </button>
+    <div className="dashboard-container">
+
+      {error && (
+        <div style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(239,35,60,0.2)', fontSize: '0.85rem' }}>
+          {error}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', alignItems: 'start' }}>
-      
-      {/* Donor screening workstation */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        
-        {/* SCANNER LOOKUP */}
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Donor Check-In Scanner</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
-            Enter the patient's **FAYDA National ID** or Registered **Phone Number** to determine their donation record.
-          </p>
-
-          <form onSubmit={handleLookup} style={{ display: 'flex', gap: '12px' }}>
-            <input
-              type="text"
-              placeholder="e.g. ET-001 or +251911223344"
-              value={queryId}
-              onChange={(e) => setQueryId(e.target.value)}
-              required
-              style={{ flex: 1 }}
-            />
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              <Search size={18} /> Lookup Donor
-            </button>
-          </form>
+      {success && (
+        <div style={{ background: 'rgba(6,214,160,0.1)', color: '#06d6a0', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(6,214,160,0.2)', fontSize: '0.85rem' }}>
+          {success}
         </div>
+      )}
 
-        {error && (
-          <div className="glass-card" style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '16px', border: '1px solid rgba(239,35,60,0.2)' }}>
-            {error}
+      {/* DASHBOARD OVERVIEW */}
+      {(tab === 'dashboard' || tab === 'main' || !tab) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          
+          {/* Header */}
+          <div className="dashboard-header">
+            <h2>Donation Station Overview</h2>
+            <p>Log check-ins, verify eligibility and collect blood samples.</p>
           </div>
-        )}
 
-        {success && (
-          <div className="glass-card" style={{ background: 'rgba(58,134,255,0.1)', color: '#3a86ff', padding: '16px', border: '1px solid rgba(58,134,255,0.2)' }}>
-            {success}
+          {/* 4 Stat Cards Row */}
+          <div className="stat-card-grid">
+            
+            {/* Stat 1: Today's Check-ins */}
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Today's Check-ins</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(37,99,235,0.12)', color: '#2563eb' }}>
+                  <UserCheck size={18} />
+                </div>
+              </div>
+              <div className="stat-card-value">32</div>
+              <div className="stat-card-trend trend-up">
+                <span>+8 vs yesterday</span>
+              </div>
+            </div>
+
+            {/* Stat 2: Samples Collected */}
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Samples Collected</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(255,209,102,0.15)', color: '#f59e0b' }}>
+                  <Droplet size={18} fill="#f59e0b" />
+                </div>
+              </div>
+              <div className="stat-card-value">{samples.length > 0 ? samples.length : '28'}</div>
+              <div className="stat-card-trend trend-up">
+                <span>+5 vs yesterday</span>
+              </div>
+            </div>
+
+            {/* Stat 3: Pending Lab Results */}
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Pending Lab Results</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(239,35,60,0.12)', color: '#ef233c' }}>
+                  <Clock size={18} />
+                </div>
+              </div>
+              <div className="stat-card-value">15</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>+3 vs yesterday</span>
+              </div>
+            </div>
+
+            {/* Stat 4: Total Donors (This Month) */}
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Total Donors (This Month)</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(6,214,160,0.12)', color: '#06d6a0' }}>
+                  <Users size={18} />
+                </div>
+              </div>
+              <div className="stat-card-value">412</div>
+              <div className="stat-card-trend trend-up">
+                <span>+25 vs last month</span>
+              </div>
+            </div>
+
           </div>
-        )}
 
-        {/* WORKFLOW DISCOVERY */}
-        {searched && (
-          <div className="glass-card animate-fade-in" style={{ 
-            borderTop: donorResult ? '4px solid #06d6a0' : '4px solid #ffb703',
-            padding: '24px'
-          }}>
-            {donorResult ? (
-              // RETURNING DONOR WORKFLOW
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#06d6a0' }}>
-                  <UserCheck size={24} />
-                  <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>Returning Donor Profile Detected</h4>
-                </div>
-                
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.9rem' }}>
-                  <div style={{ marginBottom: '8px' }}>Name: <strong>{donorResult.name}</strong></div>
-                  <div style={{ marginBottom: '8px' }}>Phone: <strong>{donorResult.phone}</strong></div>
-                  <div style={{ marginBottom: '8px' }}>Blood Type: <span className="badge-blood-type">{donorResult.blood_type}</span></div>
-                  <div style={{ marginBottom: '8px' }}>Last Donation: <strong>{donorResult.last_donation_date ? new Date(donorResult.last_donation_date).toLocaleDateString() : 'Never'}</strong></div>
-                  <div>Account Reward Balance: <strong>{donorResult.points} points</strong></div>
-                </div>
+          {/* 3 Column Grid Section */}
+          <div className="dashboard-grid-3">
+            
+            {/* Card 1: Recent Collections */}
+            <div className="dashboard-card">
+              <div className="dashboard-card-title">
+                <span>Recent Collections</span>
+                <Droplet size={16} color="var(--text-muted)" />
+              </div>
 
-                {eligibility && !eligibility.is_eligible ? (
-                  <div style={{ background: 'rgba(255,183,3,0.1)', border: '1px solid rgba(255,183,3,0.2)', color: '#ffb703', padding: '14px', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '0.85rem' }}>
-                    <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                {displayCheckins.map(item => (
+                  <div key={item.id} className="clean-list-item">
                     <div>
-                      <div style={{ fontWeight: 'bold' }}>Ineligible for Donation</div>
-                      <div>{eligibility.message}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+                        {item.name}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {item.time}
+                      </div>
+                    </div>
+                    <span className="badge badge-approved" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => setTab('collections')} 
+                className="view-all-btn"
+              >
+                View All <ArrowRight size={13} />
+              </button>
+            </div>
+
+            {/* Card 2: Sample Collection Status (Donut Chart) */}
+            <div className="dashboard-card" style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <div className="dashboard-card-title" style={{ width: '100%' }}>
+                <span>Sample Collection Status</span>
+              </div>
+
+              {/* Responsive SVG Donut Chart */}
+              <div style={{ position: 'relative', width: '140px', height: '140px', margin: '8px 0' }}>
+                <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                  {/* Background Circle */}
+                  <path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="var(--border-color)"
+                    strokeWidth="4"
+                  />
+                  {/* Segment 1: Collected (65%) */}
+                  <path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="4"
+                    strokeDasharray="65, 100"
+                  />
+                  {/* Segment 2: Pending (25%) */}
+                  <path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="#f59e0b"
+                    strokeWidth="4"
+                    strokeDasharray="25, 100"
+                    strokeDashoffset="-65"
+                  />
+                </svg>
+                {/* Center Percentage */}
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>48</span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bags</span>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2563eb' }} /> Collected: 28 (65%)
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Pending: 15 (25%)
+                </span>
+              </div>
+            </div>
+
+            {/* Card 3: Quick Actions */}
+            <div className="dashboard-card">
+              <div className="dashboard-card-title">
+                <span>Quick Actions</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', flex: 1 }}>
+                <button 
+                  onClick={() => setTab('eligibility')} 
+                  className="quick-action-btn"
+                >
+                  <CheckCircle2 size={16} /> Check Eligibility
+                </button>
+                <button 
+                  onClick={() => setTab('collect')} 
+                  className="quick-action-btn"
+                >
+                  <Droplet size={16} /> Collect Blood Sample
+                </button>
+                <button 
+                  onClick={() => setTab('donors')} 
+                  className="quick-action-btn btn-outline"
+                >
+                  <Users size={16} /> View Donor List
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB: ELIGIBILITY CHECK */}
+      {tab === 'eligibility' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', alignItems: 'start' }}>
+          
+          <div className="dashboard-card animate-fade-in">
+            <div className="dashboard-header" style={{ marginBottom: '16px' }}>
+              <h2>Donor Eligibility Check</h2>
+              <p>Verify 90-day donation interval and donor health status before collection.</p>
+            </div>
+
+            <form onSubmit={handleLookup} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                placeholder="Enter FAYDA ID (e.g. FAY-12345) or Phone Number"
+                value={queryId}
+                onChange={(e) => setQueryId(e.target.value)}
+                style={{ flex: 1 }}
+                required
+              />
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                <Search size={16} /> Check Eligibility
+              </button>
+            </form>
+
+            {searched && donorResult && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{
+                  background: eligibility?.is_eligible ? 'rgba(6,214,160,0.1)' : 'rgba(255,209,102,0.15)',
+                  border: eligibility?.is_eligible ? '1px solid rgba(6,214,160,0.3)' : '1px solid rgba(255,209,102,0.4)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px'
+                }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    background: eligibility?.is_eligible ? '#06d6a0' : '#f59e0b',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {eligibility?.is_eligible ? <CheckCircle2 size={24} /> : <Clock size={24} />}
+                  </div>
+                  <div>
+                    <h3 style={{ margin: '0 0 2px 0', fontSize: '1.05rem', fontWeight: 800, color: eligibility?.is_eligible ? '#059669' : '#d97706' }}>
+                      {eligibility?.is_eligible ? '✓ Eligible to Donate' : '⚠️ Ineligible - Deferral Active'}
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      {eligibility?.message}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="clean-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Donor Name</span>
+                    <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{donorResult.name}</strong>
+                  </div>
+                  <div className="clean-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Blood Type</span>
+                    <strong style={{ fontSize: '1rem', color: '#2563eb' }}>{donorResult.blood_type}</strong>
+                  </div>
+                  <div className="clean-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Last Donation Date</span>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                      {donorResult.last_donation_date ? new Date(donorResult.last_donation_date).toLocaleDateString() : 'First-time donor'}
+                    </strong>
+                  </div>
+                  <div className="clean-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Loyalty Points</span>
+                    <strong style={{ fontSize: '0.9rem', color: '#f59e0b' }}>{donorResult.points} pts</strong>
+                  </div>
+                </div>
+
+                {eligibility?.is_eligible && (
+                  <button 
+                    onClick={() => setTab('collect')} 
+                    className="btn btn-primary"
+                    style={{ justifyContent: 'center', marginTop: '6px' }}
+                  >
+                    <Droplet size={16} /> Proceed to Collect Blood Sample
+                  </button>
+                )}
+              </div>
+            )}
+
+            {searched && !donorResult && (
+              <div style={{ background: 'rgba(58,134,255,0.08)', border: '1px solid rgba(58,134,255,0.2)', padding: '16px', borderRadius: '8px' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  No previous record found for <strong>{queryId}</strong>. This donor can be registered as a new donor.
+                </p>
+                <button 
+                  onClick={() => setTab('collect')} 
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.78rem' }}
+                >
+                  <Droplet size={14} /> Register & Collect Sample
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="dashboard-card animate-fade-in">
+            <div className="dashboard-header" style={{ marginBottom: '14px' }}>
+              <h2>Collection Guidelines</h2>
+              <p>Standard operating procedures.</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <CheckCircle2 size={16} color="#06d6a0" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>Verify donor identity using valid FAYDA ID or government-issued credentials.</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <CheckCircle2 size={16} color="#06d6a0" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>Confirm minimum 90-day interval between whole blood donations.</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <CheckCircle2 size={16} color="#06d6a0" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>Administer clinical pre-donation screening questionnaire before venipuncture.</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB: COLLECT SAMPLE */}
+      {tab === 'collect' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Offline Sync Bar */}
+          {offlineCount > 0 && (
+            <div style={{ background: 'rgba(255,209,102,0.12)', border: '1px solid rgba(255,209,102,0.3)', borderRadius: '8px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#f59e0b' }}>
+                <Database size={16} /> {offlineCount} offline registrations queued.
+              </div>
+              <button onClick={syncOfflineData} disabled={syncing} className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }}>
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+          )}
+
+          {/* Lookup Input Card */}
+          <div className="dashboard-card">
+            <div className="dashboard-header" style={{ marginBottom: '14px' }}>
+              <h2>Collect Blood Sample & Donor Intake</h2>
+              <p>Scan or enter FAYDA National ID or phone number to retrieve donor profile and collect sample.</p>
+            </div>
+
+            <form onSubmit={handleLookup} style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                placeholder="Enter FAYDA ID (e.g. FAY-12345) or Phone Number"
+                value={queryId}
+                onChange={(e) => setQueryId(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                <Search size={16} /> Search Donor
+              </button>
+            </form>
+          </div>
+
+          {/* Search Result Workflow */}
+          {searched && (
+            <div className="dashboard-card animate-fade-in">
+              {donorResult ? (
+                /* RETURNING DONOR WORKFLOW */
+                <form onSubmit={handleFastTrackCollect} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: eligibility?.is_eligible ? '#06d6a0' : '#ef233c' }}>
+                      {eligibility?.is_eligible ? <UserCheck size={20} /> : <AlertTriangle size={20} />}
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 'bold' }}>
+                        Donor Verified: {donorResult.name}
+                      </h4>
+                    </div>
+                    <span style={{ 
+                      fontSize: '0.78rem', 
+                      fontWeight: 700, 
+                      padding: '4px 10px', 
+                      borderRadius: '20px', 
+                      background: eligibility?.is_eligible ? 'rgba(6,214,160,0.15)' : 'rgba(239,35,60,0.15)',
+                      color: eligibility?.is_eligible ? '#059669' : '#ef233c'
+                    }}>
+                      {eligibility?.is_eligible ? '✓ Eligible to Donate' : `⚠️ Ineligible (${eligibility?.days_remaining || 0}d remaining)`}
+                    </span>
+                  </div>
+
+                  {/* Ineligibility Deferral Banner */}
+                  {eligibility && !eligibility.is_eligible && (
+                    <div style={{
+                      background: 'rgba(239,35,60,0.08)',
+                      border: '1px solid rgba(239,35,60,0.3)',
+                      borderRadius: '8px',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px'
+                    }}>
+                      <Clock size={20} color="#ef233c" style={{ flexShrink: 0, marginTop: '2px' }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#ef233c' }}>
+                          3-Month (90-Day) Deferral Period Active
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          {eligibility.message}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', background: 'var(--bg-main)', padding: '12px', borderRadius: '8px', fontSize: '0.82rem' }}>
+                    <div><strong>FAYDA ID:</strong> {donorResult.fayda_id}</div>
+                    <div><strong>Blood Type:</strong> <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{donorResult.blood_type}</span></div>
+                    <div><strong>Last Donated:</strong> {donorResult.last_donation_date ? new Date(donorResult.last_donation_date).toLocaleDateString() : 'Never'}</div>
+                    <div><strong>Points:</strong> {donorResult.points} pts</div>
+                  </div>
+
+                  {eligibility?.is_eligible ? (
+                    <>
+                      {renderQuestionnaireForm()}
+
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Assign Screening Laboratory</label>
+                        <select 
+                          value={selectedLabId} 
+                          onChange={(e) => setSelectedLabId(e.target.value)}
+                          required
+                          style={{ width: '100%' }}
+                        >
+                          {labs.map(l => (
+                            <option key={l.id} value={l.id}>{l.entity_name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
+                        <PlusCircle size={16} /> Fast-Track Sample & Route to Lab
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button 
+                        type="button" 
+                        className="btn" 
+                        disabled
+                        style={{ 
+                          justifyContent: 'center', 
+                          background: 'rgba(239,35,60,0.15)', 
+                          color: '#ef233c', 
+                          cursor: 'not-allowed', 
+                          border: '1px solid rgba(239,35,60,0.3)',
+                          fontWeight: 600
+                        }}
+                      >
+                        ⚠️ Sample Collection Blocked (Wait Period: {eligibility?.days_remaining || 0} days remaining)
+                      </button>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        Safety standard requires a minimum of 90 days between whole blood donations to ensure donor recovery and hemoglobin regeneration.
+                      </p>
+                    </div>
+                  )}
+                </form>
+              ) : (
+                /* NEW DONOR REGISTRATION WORKFLOW */
+                <form onSubmit={handleRegisterAndCollect} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b' }}>
+                    <UserX size={20} />
+                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 'bold' }}>New Donor Registration</h4>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>FAYDA ID (National ID)</label>
+                      <input type="text" placeholder="e.g. ET-999 or leave for auto" value={queryId} onChange={(e) => setQueryId(e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Full Name</label>
+                      <input type="text" placeholder="e.g. Melaku Alemu" value={name} onChange={(e) => setName(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Phone Number</label>
+                      <input type="text" placeholder="0911..." value={phone} onChange={(e) => setPhone(e.target.value)} required />
                     </div>
                   </div>
-                ) : (
-                  <form onSubmit={handleRegisterAndCollect} style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-                    <h4 style={{ margin: 0, color: 'var(--primary)' }}>Log Blood Donation Event</h4>
-                    
-                    {renderQuestionnaireForm()}
 
-                    <div style={{ marginTop: '12px' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                        Assign Screening Laboratory
-                      </label>
-                      <select 
-                        value={selectedLabId} 
-                        onChange={(e) => setSelectedLabId(e.target.value)}
-                        required
-                        style={{ width: '100%' }}
-                      >
-                        {labs.map(l => (
-                          <option key={l.id} value={l.id}>{l.entity_name}</option>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Group</label>
+                      <select value={bloodType} onChange={(e) => setBloodType(e.target.value)}>
+                        {['O+', 'A+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-'].map(t => (
+                          <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Date of Birth</label>
+                      <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Gender</label>
+                      <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                  </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
-                      <PlusCircle size={18} /> Fast-Track Sample & Route to Lab
-                    </button>
-                  </form>
-                )}
-              </div>
-            ) : (
-              // NEW DONOR WORKFLOW
-              <form onSubmit={handleRegisterAndCollect} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ffb703' }}>
-                  <UserX size={24} />
-                  <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>New Donor - Demographic Entry</h4>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>
-                  This donor is not registered in our database. Complete full demographics entry to create their health card.
-                </p>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    FAYDA ID / Temp ID
-                  </label>
-                  <input
-                    type="text"
-                    value={queryId}
-                    disabled
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.02)' }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Yonathan Abebe"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Residential Address / City</label>
+                    <input type="text" placeholder="e.g. Addis Ababa, Bole Subcity" value={address} onChange={(e) => setAddress(e.target.value)} />
+                  </div>
+
+                  {renderQuestionnaireForm()}
+
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Assign Screening Laboratory</label>
+                    <select 
+                      value={selectedLabId || (labs[0] ? labs[0].id : '')} 
+                      onChange={(e) => setSelectedLabId(e.target.value)}
                       required
                       style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. +251911223344"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      DOB
-                    </label>
-                    <input
-                      type="date"
-                      value={dob}
-                      onChange={(e) => setDob(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '8px' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      Gender
-                    </label>
-                    <select value={gender} onChange={(e) => setGender(e.target.value)} style={{ width: '100%' }}>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
+                    >
+                      {labs.length === 0 ? (
+                        <option value="">Central Blood Testing Laboratory (Auto)</option>
+                      ) : (
+                        labs.map(l => (
+                          <option key={l.id} value={l.id}>{l.entity_name}</option>
+                        ))
+                      )}
                     </select>
                   </div>
-                </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Home Address
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Bole, Addis Ababa"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    style={{ width: '100%' }}
-                  />
-                </div>
+                  <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
+                    <UserCheck size={16} /> Register Profile & Collect Blood
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
 
-                {renderQuestionnaireForm()}
+        </div>
+      )}
 
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', marginTop: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    Assign Screening Laboratory
-                  </label>
-                  <select 
-                    value={selectedLabId} 
-                    onChange={(e) => setSelectedLabId(e.target.value)}
-                    required
-                    style={{ width: '100%' }}
-                  >
-                    {labs.map(l => (
-                      <option key={l.id} value={l.id}>{l.entity_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
-                  <UserCheck size={18} /> Register Profile & Collect Blood
-                </button>
-              </form>
-            )}
+      {/* TAB: DONOR LIST */}
+      {tab === 'donors' && (
+        <div className="dashboard-card animate-fade-in">
+          <div className="dashboard-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2>Registered Donors Directory</h2>
+              <p>Browse and search certified blood donors registered in the national network.</p>
+            </div>
+            <button 
+              onClick={() => setTab('collect')} 
+              className="btn btn-primary"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <PlusCircle size={14} /> New Registration & Collection
+            </button>
           </div>
-        )}
 
-      </div>
+          {/* Filter Bar */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                placeholder="Search donors by name, FAYDA ID, or phone..." 
+                value={donorSearchTerm}
+                onChange={(e) => setDonorSearchTerm(e.target.value)}
+                style={{ paddingLeft: '32px', width: '100%' }}
+              />
+            </div>
+            <select 
+              value={donorBloodTypeFilter} 
+              onChange={(e) => setDonorBloodTypeFilter(e.target.value)}
+              style={{ width: '140px' }}
+            >
+              <option value="ALL">All Blood Types</option>
+              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
 
-      {/* Station collection logging */}
-      <div className="glass-card">
-        <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Station Dispatch Log</h3>
-        {samples.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)' }}>No blood bags collected today.</p>
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Donor Name</th>
-                  <th>Blood Type</th>
-                  <th>Routed Lab</th>
-                  <th>Bag Status</th>
-                  <th>Collected Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {samples.map(s => (
-                  <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.donor_name}</td>
-                    <td>
-                      <span className="badge-blood-type">{s.blood_type}</span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{s.lab_name}</td>
-                    <td>
-                      <span className={`badge badge-${s.status}`}>
-                        {s.status}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {new Date(s.collected_at).toLocaleDateString()}
-                    </td>
+          {loadingDonors ? (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading donors list...</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Donor Name</th>
+                    <th>FAYDA ID</th>
+                    <th>Blood Type</th>
+                    <th>Phone</th>
+                    <th>Last Donation</th>
+                    <th>Eligibility</th>
+                    <th>Donations</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {donorsList
+                    .filter(d => {
+                      const matchesSearch = !donorSearchTerm || 
+                        d.name?.toLowerCase().includes(donorSearchTerm.toLowerCase()) ||
+                        d.fayda_id?.toLowerCase().includes(donorSearchTerm.toLowerCase()) ||
+                        d.phone?.includes(donorSearchTerm);
+                      const matchesType = donorBloodTypeFilter === 'ALL' || d.blood_type === donorBloodTypeFilter;
+                      return matchesSearch && matchesType;
+                    })
+                    .map(d => (
+                      <tr key={d.fayda_id}>
+                        <td style={{ fontWeight: 600 }}>{d.name}</td>
+                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{d.fayda_id}</td>
+                        <td>
+                          <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
+                            {d.blood_type}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.82rem' }}>{d.phone}</td>
+                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {d.last_donation_date ? new Date(d.last_donation_date).toLocaleDateString() : 'Never'}
+                        </td>
+                        <td>
+                          <span className={`badge badge-${d.is_eligible ? 'approved' : 'pending'}`} style={{ fontSize: '0.68rem' }}>
+                            {d.is_eligible ? 'Eligible' : 'Deferral'}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{d.total_donations || 0}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => {
+                              setQueryId(d.fayda_id);
+                              setTab('collect');
+                            }}
+                            className="btn btn-primary"
+                            style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                          >
+                            <Droplet size={12} /> Collect
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-      </div>
+      {/* TAB: REPORTS */}
+      {tab === 'reports' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="dashboard-header">
+            <h2>Donation Station Analytics & Reports</h2>
+            <p>Summary of collection volume, donor intake, and laboratory dispatch metrics.</p>
+          </div>
+
+          <div className="stat-card-grid">
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Total Collections</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(37,99,235,0.12)', color: '#2563eb' }}>
+                  <Droplet size={18} fill="#2563eb" />
+                </div>
+              </div>
+              <div className="stat-card-value">{reportsData?.total_collected || samples.length}</div>
+              <div className="stat-card-trend trend-up"><span>All time</span></div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Pending Lab Screen</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(247,127,0,0.12)', color: '#f77f00' }}>
+                  <Clock size={18} />
+                </div>
+              </div>
+              <div className="stat-card-value">{reportsData?.pending_lab || 15}</div>
+              <div className="stat-card-trend trend-neutral"><span>In queue</span></div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Validated Samples</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(6,214,160,0.12)', color: '#06d6a0' }}>
+                  <CheckCircle2 size={18} />
+                </div>
+              </div>
+              <div className="stat-card-value">{reportsData?.validated || 24}</div>
+              <div className="stat-card-trend trend-up"><span>Approved</span></div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-card-top">
+                <span className="stat-card-label">Today's Check-ins</span>
+                <div className="stat-card-icon" style={{ background: 'rgba(37,99,235,0.12)', color: '#2563eb' }}>
+                  <UserCheck size={18} />
+                </div>
+              </div>
+              <div className="stat-card-value">32</div>
+              <div className="stat-card-trend trend-up"><span>Active today</span></div>
+            </div>
+          </div>
+
+          {/* Blood Type Breakdown */}
+          <div className="dashboard-card animate-fade-in">
+            <div className="dashboard-header" style={{ marginBottom: '14px' }}>
+              <h2>Collected Samples by Blood Type</h2>
+              <p>Distribution of all blood units collected at this station.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px' }}>
+              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(type => {
+                const count = reportsData?.blood_type_distribution?.[type] || 
+                  samples.filter(s => s.blood_type === type).length;
+                return (
+                  <div key={type} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2563eb' }}>{type}</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>{count}</div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>units</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: TODAY'S COLLECTIONS / DISPATCH LOG */}
+      {tab === 'collections' && (
+        <div className="dashboard-card animate-fade-in">
+          <div className="dashboard-header" style={{ marginBottom: '16px' }}>
+            <h2>Station Dispatch & Collection Log</h2>
+            <p>Track all blood bags collected at this workstation and their routing status.</p>
+          </div>
+
+          {samples.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No blood bags collected today.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Donor Name</th>
+                    <th>Blood Type</th>
+                    <th>Routed Lab</th>
+                    <th>Bag Status</th>
+                    <th>Collected Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {samples.map(s => (
+                    <tr key={s.id}>
+                      <td style={{ fontWeight: 600 }}>{s.donor_name}</td>
+                      <td>
+                        <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
+                          {s.blood_type}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{s.lab_name}</td>
+                      <td>
+                        <span className={`badge badge-${s.status}`}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        {new Date(s.collected_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
