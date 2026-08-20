@@ -17,7 +17,9 @@ export default function Register({ onNavigateToLogin }) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [entityName, setEntityName] = useState('');
+  const [location, setLocation] = useState('');
 
   // Donor information
   const [name, setName] = useState('');
@@ -89,6 +91,21 @@ export default function Register({ onNavigateToLogin }) {
   };
 
   // --------------------------------
+  // RESEND VERIFICATION EMAIL
+  // --------------------------------
+
+  const handleResendCode = async () => {
+    setError(null);
+    setSuccessMsg(null);
+    // Re-use the same send-email endpoint — it will generate a fresh code
+    const data = await api.auth.registerVerifyEmail(email);
+    if (data.code) {
+      console.log('[DEBUG] Resent Verification Code:', data.code);
+    }
+    // Success message handled inside DonorCodeStep component
+  };
+
+  // --------------------------------
   // FAYDA LOOKUP
   // --------------------------------
 
@@ -142,6 +159,17 @@ export default function Register({ onNavigateToLogin }) {
   const handleRegisterComplete = async (e) => {
     e.preventDefault();
 
+    // Validate confirm password
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please confirm your password.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -151,6 +179,8 @@ export default function Register({ onNavigateToLogin }) {
       role,
 
       entityName: role === 'donor' ? name : entityName,
+
+      location: role !== 'donor' ? location : undefined,
 
       faydaId: role === 'donor' ? faydaId : undefined,
 
@@ -270,11 +300,13 @@ export default function Register({ onNavigateToLogin }) {
       {/* Donor Step 2 */}
       {role === 'donor' && step === 2 && (
         <DonorCodeStep
+          email={email}
           code={code}
           setCode={setCode}
           loading={loading}
           onSubmit={handleVerifyCode}
           onBack={() => setStep(1)}
+          onResend={handleResendCode}
         />
       )}
 
@@ -283,6 +315,8 @@ export default function Register({ onNavigateToLogin }) {
         <DonorProfileStep
           password={password}
           setPassword={setPassword}
+          confirmPassword={confirmPassword}
+          setConfirmPassword={setConfirmPassword}
           faydaId={faydaId}
           setFaydaId={handleFaydaIdChange}
           faydaLinked={faydaLinked}
@@ -310,8 +344,13 @@ export default function Register({ onNavigateToLogin }) {
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
+          confirmPassword={confirmPassword}
+          setConfirmPassword={setConfirmPassword}
           entityName={entityName}
           setEntityName={setEntityName}
+          location={location}
+          setLocation={setLocation}
+          role={role}
           loading={loading}
           onSubmit={handleRegisterComplete}
         />

@@ -185,7 +185,7 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
           
           {/* Header Greeting */}
           <div className="dashboard-header">
-            <h2>Welcome, {donor.name}! 👋</h2>
+            <h2>Welcome, {donor.name}! <span role="img" aria-label="wave">&#x1F44B;</span></h2>
             <p>Thank you for being a life saver.</p>
           </div>
 

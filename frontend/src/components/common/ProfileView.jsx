@@ -201,30 +201,30 @@ export default function ProfileView({ user, setTab, onBack }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             
-            <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Entity / Workstation Name</span>
+            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>Entity / Workstation Name</span>
               <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
                 {profileData.entity_name || donor.name || 'Official Workstation'}
               </span>
             </div>
 
-            <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>System Role</span>
+            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>System Role</span>
               <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.88rem' }}>
                 {getRoleLabel(profileData.role || user?.role)}
               </span>
             </div>
 
-            <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Official Email</span>
+            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>Official Email</span>
               <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                 {profileData.email || user?.email}
               </span>
             </div>
 
-            <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Account ID</span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>Account ID</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                 {profileData.id || user?.id || 'AUTH-SESSION-TOKEN'}
               </span>
             </div>
@@ -232,29 +232,29 @@ export default function ProfileView({ user, setTab, onBack }) {
             {/* Donor specific demographics */}
             {profileData.role === 'donor' && (
               <>
-                <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>FAYDA National ID</span>
+                <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>FAYDA National ID</span>
                   <span style={{ fontWeight: 800, color: '#3a86ff', fontSize: '0.9rem' }}>
                     {donor.fayda_id || 'ET-FAY-VERIFIED'}
                   </span>
                 </div>
 
-                <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Blood Group</span>
+                <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>Blood Group</span>
                   <span style={{ fontWeight: 800, color: '#ef233c', fontSize: '1rem', background: 'rgba(239,35,60,0.1)', padding: '2px 10px', borderRadius: '4px' }}>
                     {donor.blood_type || 'O+'}
                   </span>
                 </div>
 
-                <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Total Points</span>
+                <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>Total Points</span>
                   <span style={{ fontWeight: 800, color: '#f59e0b', fontSize: '0.95rem' }}>
-                    🏆 {donor.points || 0} pts
+                    &#x1F3C6; {donor.points || 0} pts
                   </span>
                 </div>
 
-                <div className="clean-list-item" style={{ background: 'var(--bg-main)', padding: '12px', borderRadius: '8px' }}>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Phone Number</span>
+                <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>Phone Number</span>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                     {donor.phone || '+251 911 000 000'}
                   </span>
@@ -274,7 +274,7 @@ export default function ProfileView({ user, setTab, onBack }) {
 
           <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Current Password</label>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Current Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type="password" 
@@ -282,13 +282,13 @@ export default function ProfileView({ user, setTab, onBack }) {
                   value={currentPassword} 
                   onChange={(e) => setCurrentPassword(e.target.value)} 
                   required 
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>New Password</label>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>New Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type="password" 
@@ -296,13 +296,13 @@ export default function ProfileView({ user, setTab, onBack }) {
                   value={newPassword} 
                   onChange={(e) => setNewPassword(e.target.value)} 
                   required 
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Confirm New Password</label>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Confirm New Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
                   type="password" 
@@ -310,16 +310,29 @@ export default function ProfileView({ user, setTab, onBack }) {
                   value={confirmPassword} 
                   onChange={(e) => setConfirmPassword(e.target.value)} 
                   required 
-                  style={{ width: '100%' }}
+                  style={{ 
+                    width: '100%', 
+                    background: 'var(--input-bg)', 
+                    color: 'var(--text-primary)', 
+                    border: newPassword && confirmPassword && newPassword !== confirmPassword 
+                      ? '1px solid #ef233c'
+                      : '1px solid var(--input-border)'
+                  }}
                 />
               </div>
+              {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                <span style={{ color: '#ef233c', fontSize: '0.72rem', marginTop: '4px', display: 'block' }}>&#x2717; Passwords do not match</span>
+              )}
+              {newPassword && confirmPassword && newPassword === confirmPassword && (
+                <span style={{ color: '#06d6a0', fontSize: '0.72rem', marginTop: '4px', display: 'block' }}>&#x2713; Passwords match</span>
+              )}
             </div>
 
             <button 
               type="submit" 
               className="btn btn-primary" 
               style={{ justifyContent: 'center', marginTop: '6px' }}
-              disabled={saving}
+              disabled={saving || (newPassword && confirmPassword && newPassword !== confirmPassword)}
             >
               <Lock size={15} /> {saving ? 'Updating Password...' : 'Update Password'}
             </button>

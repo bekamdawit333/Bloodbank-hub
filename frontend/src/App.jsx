@@ -4,7 +4,7 @@ import {
   Menu, Users, BarChart3, ToggleLeft, History, Megaphone, Award, Calendar, 
   Package, Truck, Search, Stethoscope, Key, Bell, CheckCircle2, UserCheck, 
   FlaskConical, ClipboardList, Inbox, MessageSquare, AlertCircle, FileText,
-  X, Check, AlertTriangle, ChevronRight, ExternalLink
+  X, Check, AlertTriangle, ChevronRight, ExternalLink, ChevronLeft, Home
 } from 'lucide-react';
 import { api } from './services/api';
 import Landing from './pages/Landing';
@@ -484,6 +484,8 @@ export default function App() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     {navItems.map(item => {
                       const isActive = subTab === item.id;
+                      // Count unread notifications for the messages/notifications item
+                      const isNotifItem = item.id === 'messages';
                       return (
                         <button
                           key={item.id}
@@ -506,7 +508,8 @@ export default function App() {
                             cursor: 'pointer',
                             textAlign: 'left',
                             opacity: isActive ? 1 : 0.8,
-                            transition: 'all 0.15s ease'
+                            transition: 'all 0.15s ease',
+                            position: 'relative'
                           }}
                           onMouseEnter={(e) => {
                             if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
@@ -516,7 +519,25 @@ export default function App() {
                           }}
                         >
                           {item.icon}
-                          <span>{item.label}</span>
+                          <span style={{ flex: 1 }}>{item.label}</span>
+                          {isNotifItem && unreadNotifCount > 0 && (
+                            <span style={{
+                              background: '#ef233c',
+                              color: '#fff',
+                              borderRadius: '10px',
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              minWidth: '18px',
+                              height: '18px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 4px',
+                              flexShrink: 0
+                            }}>
+                              {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -527,7 +548,7 @@ export default function App() {
             </div>
 
             {/* User Profile Badge at Bottom of Sidebar */}
-            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
                 <div style={{ 
                   width: '34px', 
@@ -543,7 +564,7 @@ export default function App() {
                 }}>
                   {getRoleIcon(user.role)}
                 </div>
-                <div style={{ overflow: 'hidden' }}>
+                <div style={{ overflow: 'hidden', flex: 1 }}>
                   <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                     {user.entity_name || user.email?.split('@')[0]}
                   </div>
@@ -552,15 +573,57 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={handleLogout} 
-                title="Sign Out" 
-                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'flex' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#ff6b6b'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
-              >
-                <LogOut size={16} />
-              </button>
+              {/* Back to Dashboard + Sign Out row */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {subTab !== 'dashboard' && (
+                  <button
+                    onClick={() => { setSubTab('dashboard'); setMenuOpen(false); }}
+                    title="Back to Dashboard"
+                    style={{ 
+                      flex: 1,
+                      background: 'rgba(255,255,255,0.08)', 
+                      border: '1px solid rgba(255,255,255,0.15)', 
+                      color: 'rgba(255,255,255,0.85)', 
+                      cursor: 'pointer', 
+                      padding: '6px 8px', 
+                      borderRadius: '6px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                  >
+                    <Home size={13} /> Dashboard
+                  </button>
+                )}
+                <button 
+                  onClick={handleLogout} 
+                  title="Sign Out" 
+                  style={{ 
+                    flex: subTab !== 'dashboard' ? 'none' : 1,
+                    background: 'rgba(239,35,60,0.12)', 
+                    border: '1px solid rgba(239,35,60,0.25)', 
+                    color: '#ff6b6b', 
+                    cursor: 'pointer', 
+                    padding: '6px 10px', 
+                    borderRadius: '6px', 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    fontSize: '0.72rem',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,35,60,0.22)'; e.currentTarget.style.color = '#ff8a8a'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,35,60,0.12)'; e.currentTarget.style.color = '#ff6b6b'; }}
+                >
+                  <LogOut size={13} /> Sign Out
+                </button>
+              </div>
             </div>
           </aside>
 
@@ -723,14 +786,24 @@ export default function App() {
                     {unreadNotifCount > 0 && (
                       <span style={{ 
                         position: 'absolute', 
-                        top: '2px', 
-                        right: '2px', 
-                        width: '8px', 
-                        height: '8px', 
+                        top: '-4px', 
+                        right: '-4px', 
+                        minWidth: '18px',
+                        height: '18px', 
                         background: '#ef233c', 
-                        borderRadius: '50%',
-                        border: '2px solid var(--bg-surface)'
-                      }} />
+                        borderRadius: '10px',
+                        border: '2px solid var(--bg-surface)',
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0 3px',
+                        lineHeight: 1
+                      }}>
+                        {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                      </span>
                     )}
                   </button>
 

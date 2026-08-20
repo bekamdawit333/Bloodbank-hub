@@ -115,6 +115,31 @@
   --text-muted: #718096;
 }
 
+/* Explicit dark mode (when theme class is 'dark') */
+:root.dark {
+  --bg-main: #0b0b0e;
+  --bg-surface: #14141a;
+  --bg-card: rgba(26, 26, 36, 0.7);
+  --bg-card-hover: rgba(36, 36, 48, 0.85);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --input-bg: rgba(20, 20, 26, 0.8);
+  --input-border: rgba(255, 255, 255, 0.12);
+  --bg-hover: rgba(255, 255, 255, 0.015);
+  --btn-secondary-bg: rgba(255, 255, 255, 0.06);
+  
+  --primary: #e63946;
+  --primary-hover: #ff4d5a;
+  --primary-rgb: 230, 57, 70;
+  
+  --secondary: #2b2d42;
+  --secondary-hover: #3d405b;
+  
+  --text-primary: #f8f9fa;
+  --text-main: var(--text-primary);
+  --text-secondary: #a2a8b6;
+  --text-muted: #6c757d;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
