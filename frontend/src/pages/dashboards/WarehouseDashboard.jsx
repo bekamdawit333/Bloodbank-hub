@@ -342,15 +342,178 @@ export default function WarehouseDashboard({ tab, setTab }) {
                     {requests.map(r => {
                       const availableStock = stock.find(s => s.blood_type === r.blood_type)?.quantity || 0;
                       const hasSufficient = availableStock >= r.units_needed;
-    })}
+                   return (
+                        <tr key={r.id}>
+                          <td style={{ fontWeight: 600 }}>{r.hospital_name}</td>
+                          <td>
+                            <span className="badge-blood-type">{r.blood_type}</span>
+                          </td>
+                          <td style={{ fontWeight: 'bold' }}>{r.units_needed} bags</td>
+                          <td style={{ fontSize: '0.8rem', color: hasSufficient ? '#06d6a0' : '#ef233c' }}>
+                            {hasSufficient ? `Sufficient (${availableStock} bags)` : `Insufficient (${availableStock} bags)`}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleFulfillRequest(r.id)}
+                              className="btn btn-primary"
+                              style={{ 
+                                padding: '6px 12px', 
+                                fontSize: '0.75rem',
+                                background: hasSufficient ? '#06d6a0' : 'rgba(255,255,255,0.05)',
+                                borderColor: hasSufficient ? '#06d6a0' : 'rgba(255,255,255,0.1)',
+                                color: hasSufficient ? '#000' : 'var(--text-muted)'
+                              }}
+                              disabled={loading || !hasSufficient}
+                            >
+                              <Truck size={12} /> Dispatch
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
+
         </div>
       )}
+
+      {/* MANAGE ANNOUNCEMENTS */}
+      {tab === 'announcements' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: '30px', alignItems: 'start' }}>
+          
+          {/* Write announcement form */}
+          <div className="glass-card" style={{ borderTop: '4px solid var(--primary)' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Publish Campaign Drive</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
+              Publish news about blood collection campaigns or temporary collection stations.
+            </p>
+
+            <form onSubmit={handleAnnouncementSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Announcement Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Meskel Square Grand Blood Drive"
+                  value={annTitle}
+                  onChange={(e) => setAnnTitle(e.target.value)}
+                  required
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Post Type
+                  </label>
+                  <select value={annType} onChange={(e) => setAnnType(e.target.value)} style={{ width: '100%' }}>
+                    <option value="campaign">General Drive Campaign</option>
+                    <option value="station">Temporary Station Details</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Station Location
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Bole Medhanialem Mall"
+                    value={annLocation}
+                    onChange={(e) => setAnnLocation(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={annStart}
+                    onChange={(e) => setAnnStart(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={annEnd}
+                    onChange={(e) => setAnnEnd(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Campaign Description
+                </label>
+                <textarea
+                  placeholder="Detail the hours of operation, urgent blood types needed..."
+                  value={annContent}
+                  onChange={(e) => setAnnContent(e.target.value)}
+                  rows={4}
+                  required
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
+                <Send size={16} /> Broadcast Announcement
+              </button>
+            </form>
+          </div>
+
+          {/* Published announcements list */}
+          <div className="glass-card">
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Your Published Announcements</h3>
+            {announcements.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>You haven't published any announcements yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {announcements.map((ann, idx) => (
+                  <div key={ann.id || idx} style={{ 
+                    border: '1px solid rgba(255,255,255,0.05)', 
+                    padding: '16px', 
+                    borderRadius: '8px', 
+                    background: 'rgba(255,255,255,0.01)' 
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: 'rgba(239,35,60,0.1)', color: 'var(--primary)' }}>
+                        {ann.type}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {new Date(ann.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem' }}>{ann.title}</h4>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 10px 0', lineHeight: 1.4 }}>{ann.content}</p>
+                    
+                    {ann.station_location && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <MapPin size={10} /> Location: <strong>{ann.station_location}</strong>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }
-
