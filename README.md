@@ -3,7 +3,7 @@
 2- Bekam Dawit - CTC-6256-26
 3- Daniel Worku - CTC-1453-26
 4- Ebisa Mitiku - CTC-064-26
-5- Desta Hailemariam - CTC-1641-26
+5- Desta  Hailemariam - CTC-1641-26
 6- Desalegn Teresa - CTC-2097-26
 
 # BloodBank_hub
@@ -67,3 +67,4 @@ When a warehouse has zero stock of a critical, rare blood type, hospitals can tr
 
 *   **Cold Chain Temperature Monitoring:** Simulated temperature logging for warehouse freezers. If storage units exceed the safe temperature range (2 degrees Celsius to 6 degrees Celsius), the system will trigger warnings and quarantine affected stock.
 *   **Administrative Audit Logging:** A centralized log file dashboard for the System Administrator to view compliance checks, database updates, user status changes, and donor privacy access logs.
+*   Integrating with  hosipital management system
