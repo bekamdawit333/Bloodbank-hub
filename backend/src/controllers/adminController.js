@@ -1,4 +1,4 @@
-﻿const { mainDb } = require('../config/prisma');
+const { mainDb } = require('../config/prisma');
 const { sendSMS } = require('../utils/sms');
 const { logAction } = require('../utils/audit');
 const bcrypt = require('bcryptjs');
@@ -8,9 +8,7 @@ async function getUsers(req, res) {
   try {
     const users = await mainDb.user.findMany({
       where: {
-        role: {
-          notIn: ['admin', 'donor']
-        }
+        NOT: { role: 'admin' }
       },
       select: {
         id: true,
@@ -111,7 +109,24 @@ async function getAdminAnalytics(req, res) {
     // Sort by total samples descending
     stationCollectionsData.sort((a, b) => b.total_samples - a.total_samples);
 
+    // 3. Overall KPI aggregations
+    const totalDonors = await mainDb.donor.count();
+    const totalWorkstations = await mainDb.user.count({
+      where: { role: { not: 'donor' } }
+    });
+    const stockAgg = await mainDb.warehouseStock.aggregate({
+      _sum: { quantity: true }
+    });
+    const totalStock = stockAgg._sum.quantity || 0;
+    const pendingRequests = await mainDb.hospitalRequest.count({
+      where: { status: 'pending' }
+    });
+
     res.json({
+      totalDonors,
+      totalWorkstations,
+      totalStock,
+      pendingRequests,
       hospitalRequests: hospitalRequestsData,
       stationCollections: stationCollectionsData
     });
