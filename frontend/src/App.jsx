@@ -1,5 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
-import { LogOut, Heart, Shield, Activity, User, Building, Warehouse, Sun, Moon, Smartphone, Monitor, Menu, Users, BarChart3, ToggleLeft, History, Megaphone, Award, Calendar, Package, Truck, Search, Stethoscope, Key } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  LogOut, Heart, Shield, Activity, User, Building, Warehouse, Sun, Moon, 
+  Menu, Users, BarChart3, ToggleLeft, History, Megaphone, Award, Calendar, 
+  Package, Truck, Search, Stethoscope, Key, Bell, CheckCircle2, UserCheck, 
+  FlaskConical, ClipboardList, Inbox, MessageSquare, AlertCircle, FileText,
+  X, Check, AlertTriangle, ChevronRight, ExternalLink
+} from 'lucide-react';
 import { api } from './services/api';
 import Landing from './pages/Landing';
 import Login from './pages/auth/Login/auth';
@@ -10,15 +16,44 @@ import StationDashboard from './pages/dashboards/StationDashboard';
 import LabDashboard from './pages/dashboards/LabDashboard';
 import WarehouseDashboard from './pages/dashboards/WarehouseDashboard';
 import HospitalDashboard from './pages/dashboards/HospitalDashboard';
+import ProfileView from './components/common/ProfileView';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [view, setView] = useState('landing'); // landing, login, register, dashboard
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [subTab, setSubTab] = useState('');
+  const [subTab, setSubTab] = useState('dashboard');
+  
+  // Header state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsRead, setNotificationsRead] = useState(false);
+
+  const searchRef = useRef(null);
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchFocused(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotificationsOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Handle theme application
   useEffect(() => {
@@ -29,13 +64,14 @@ export default function App() {
   // Dynamic window resizing listener to check mobile size
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
+      const mobile = window.innerWidth <= 1024;
       setIsMobile(mobile);
       if (!mobile) setMenuOpen(false);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
@@ -48,26 +84,15 @@ export default function App() {
       setToken(cachedToken);
       setUser(cachedUser);
       setView('dashboard');
+      setSubTab('dashboard');
     }
   }, []);
-
-  // Sync subTab with user role on login
-  useEffect(() => {
-    if (user) {
-      switch (user.role) {
-        case 'admin': setSubTab('users'); break;
-        case 'donor': setSubTab('history'); break;
-        case 'hospital': setSubTab('internal'); break;
-        case 'warehouse': setSubTab('inventory'); break;
-        default: setSubTab('main');
-      }
-    }
-  }, [user]);
 
   const handleLoginSuccess = (loggedInUser, authToken) => {
     setUser(loggedInUser);
     setToken(authToken);
     setView('dashboard');
+    setSubTab('dashboard');
   };
 
   const handleLogout = () => {
@@ -75,20 +100,147 @@ export default function App() {
     setUser(null);
     setToken(null);
     setView('login');
+    setProfileOpen(false);
+    setNotificationsOpen(false);
+  };
+
+  // Get search placeholder based on user role
+  const getSearchPlaceholder = (role) => {
+    switch (role) {
+      case 'admin': return 'Search users, stations, logs...';
+      case 'donor': return 'Search campaigns, stations...';
+      case 'station': return 'Search donors, samples...';
+      case 'laboratory': return 'Search samples, records...';
+      case 'warehouse': return 'Search inventory, requests...';
+      case 'hospital': return 'Search patients, requests...';
+      default: return 'Search...';
+    }
+  };
+
+  // Role-specific searchable entities
+  const getRoleSearchResults = (role, query) => {
+    if (!query || query.trim().length === 0) return [];
+    const q = query.toLowerCase();
+
+    switch (role) {
+      case 'admin':
+        return [
+          { title: 'Workstation Approvals', category: 'Approvals', tab: 'approvals', desc: 'Pending hospital & station registrations' },
+          { title: 'Registered Users Directory', category: 'Users', tab: 'users', desc: 'All user accounts and roles' },
+          { title: 'System Audit Logs', category: 'Security', tab: 'audit', desc: 'Security events and action history' },
+          { title: 'Password Reset Tickets', category: 'Support', tab: 'resets', desc: 'Active workstation reset requests' },
+          { title: 'System Analytics', category: 'Reports', tab: 'analytics', desc: 'Monthly supply and demand analytics' },
+        ].filter(item => item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+
+      case 'donor':
+        return [
+          { title: 'Upcoming Campaigns & Drives', category: 'Campaigns', tab: 'campaigns', desc: 'Meskel Square & University drives' },
+          { title: 'Eligibility Status', category: 'Medical', tab: 'eligibility', desc: 'Check your 90-day donation countdown' },
+          { title: 'My Reward Points', category: 'Rewards', tab: 'points', desc: 'View loyalty tier and points leaderboard' },
+          { title: 'Donation History', category: 'Records', tab: 'history', desc: 'Past donations and certificates' },
+          { title: 'Messages & Alerts', category: 'Messages', tab: 'messages', desc: 'Notifications from medical team' },
+        ].filter(item => item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+
+      case 'station':
+        return [
+          { title: 'Eligibility Check', category: 'Screening', tab: 'eligibility', desc: 'Verify 90-day donation interval' },
+          { title: 'Collect Blood Sample', category: 'Collection', tab: 'collect', desc: 'Pre-donation questionnaire & collection' },
+          { title: 'Registered Donors Directory', category: 'Donors', tab: 'donors', desc: 'Search certified donor database' },
+          { title: "Today's Collections Log", category: 'Dispatches', tab: 'collections', desc: 'Track blood bags collected today' },
+          { title: 'Station Analytics Reports', category: 'Reports', tab: 'reports', desc: 'Intake volume and blood type breakdown' },
+        ].filter(item => item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+
+      case 'laboratory':
+        return [
+          { title: 'Pending Screening Queue', category: 'Screening', tab: 'pending', desc: 'Blood samples awaiting viral test' },
+          { title: 'Confidential Lab Records', category: 'Records', tab: 'records', desc: 'Verified screening history and markers' },
+          { title: 'Donor Reward Points', category: 'Points', tab: 'points', desc: 'Points awarded after validation' },
+          { title: 'Inventory Out Dispatches', category: 'Warehouse', tab: 'inventory', desc: 'Validated units routed to warehouse' },
+          { title: 'Laboratory Quality Reports', category: 'Reports', tab: 'reports', desc: 'Negative pass rate and defect metrics' },
+        ].filter(item => item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+
+      case 'warehouse':
+        return [
+          { title: 'Central Blood Bank Inventory', category: 'Inventory', tab: 'inventory', desc: 'Current stock across all 8 blood types' },
+          { title: 'Incoming Stock', category: 'Supply', tab: 'incoming', desc: 'Blood bags delivered from laboratories' },
+          { title: 'Hospital Dispatch Requests', category: 'Orders', tab: 'dispatch', desc: 'Fulfill hospital requisition orders' },
+          { title: 'Campaign Announcements', category: 'Drives', tab: 'campaigns', desc: 'Create public donation campaigns' },
+          { title: 'Emergency SMS Broadcast', category: 'Alerts', tab: 'alerts', desc: 'Dispatch SMS for critical blood shortages' },
+        ].filter(item => item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+
+      case 'hospital':
+        return [
+          { title: 'Central Requisition Order', category: 'Orders', tab: 'request', desc: 'Order blood from central warehouse' },
+          { title: 'My Active Blood Requests', category: 'Tracking', tab: 'requests', desc: 'Status of dispatched blood orders' },
+          { title: 'Hospital Patients (HMS)', category: 'Patients', tab: 'patients', desc: 'Admit patients and assign blood units' },
+          { title: 'Facility Blood Reserve', category: 'Stock', tab: 'stock', desc: 'On-site refrigeration inventory' },
+          { title: 'Emergency Vitals Lookup', category: 'Medical', tab: 'patients', desc: 'FAYDA emergency medical history' },
+        ].filter(item => item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
+
+      default:
+        return [];
+    }
+  };
+
+  // Role-specific notifications
+  const getRoleNotifications = (role) => {
+    switch (role) {
+      case 'admin':
+        return [
+          { id: 1, title: 'New Workstation Registration', desc: 'Black Lion Hospital submitted registration for approval.', time: '10m ago', unread: true, type: 'info' },
+          { id: 2, title: 'Password Reset Ticket', desc: 'Hawassa Station submitted credential reset request.', time: '1h ago', unread: true, type: 'warning' },
+          { id: 3, title: 'System Security Alert', desc: '3-month donor reminder batch job completed successfully.', time: '3h ago', unread: false, type: 'success' },
+        ];
+      case 'donor':
+        return [
+          { id: 1, title: '3-Month Eligibility Reached!', desc: 'You are now eligible to donate blood and save lives.', time: 'Just now', unread: true, type: 'success' },
+          { id: 2, title: 'Upcoming Mega Blood Drive', desc: 'Meskel Square Mega Blood Drive is scheduled for this weekend.', time: '2h ago', unread: true, type: 'info' },
+          { id: 3, title: 'Points Credited', desc: '+100 loyalty points awarded for your recent donation.', time: '1d ago', unread: false, type: 'success' },
+        ];
+      case 'station':
+        return [
+          { id: 1, title: 'New Donor Check-in', desc: 'Abebe Kebede queued for pre-donation medical screening.', time: '5m ago', unread: true, type: 'info' },
+          { id: 2, title: 'Lab Results Ready', desc: 'Central Lab processed 12 blood samples from your station.', time: '45m ago', unread: true, type: 'success' },
+          { id: 3, title: 'Daily Target Progress', desc: 'Station achieved 80% of daily collection target.', time: '2h ago', unread: false, type: 'info' },
+        ];
+      case 'laboratory':
+        return [
+          { id: 1, title: 'Urgent Sample in Queue', desc: 'O- blood sample received from Addis Central Station.', time: '15m ago', unread: true, type: 'warning' },
+          { id: 2, title: 'Validation Completed', desc: 'Sample SMP-2025-001 approved and routed to Warehouse.', time: '1h ago', unread: false, type: 'success' },
+          { id: 3, title: 'Daily Batch Summary', desc: '45 samples screened today with 88.9% negative pass rate.', time: '4h ago', unread: false, type: 'info' },
+        ];
+      case 'warehouse':
+        return [
+          { id: 1, title: 'Low Stock Warning', desc: 'O- blood units below critical threshold (6 units remaining).', time: '20m ago', unread: true, type: 'warning' },
+          { id: 2, title: 'New Requisition Order', desc: 'Tikur Anbessa Hospital requested 10 units of O+.', time: '1h ago', unread: true, type: 'info' },
+          { id: 3, title: 'Expiring Stock Notice', desc: '2 blood bags in Shelf B-4 nearing 35-day safety limit.', time: '3h ago', unread: false, type: 'warning' },
+        ];
+      case 'hospital':
+        return [
+          { id: 1, title: 'Blood Requisition Dispatched', desc: 'Order REQ-2025-120 (10 units O+) is in transit.', time: '25m ago', unread: true, type: 'success' },
+          { id: 2, title: 'Local Reserve Alert', desc: 'AB+ stock at 8 units. Requisition recommended.', time: '2h ago', unread: true, type: 'warning' },
+          { id: 3, title: 'Patient Admitted', desc: 'Almaz Tadesse admitted to ICU ward (transfusion queued).', time: '5h ago', unread: false, type: 'info' },
+        ];
+      default:
+        return [];
+    }
   };
 
   // Get active dashboard component based on user role
   const renderDashboardContent = () => {
     if (!user) return null;
+    if (subTab === 'profile') {
+      return <ProfileView user={user} setTab={setSubTab} onBack={() => setSubTab('dashboard')} />;
+    }
     switch (user.role) {
       case 'admin':
         return <AdminDashboard tab={subTab} setTab={setSubTab} />;
       case 'donor':
         return <DonorDashboard activeTab={subTab} setActiveTab={setSubTab} />;
       case 'station':
-        return <StationDashboard />;
+        return <StationDashboard tab={subTab} setTab={setSubTab} />;
       case 'laboratory':
-        return <LabDashboard />;
+        return <LabDashboard tab={subTab} setTab={setSubTab} />;
       case 'warehouse':
         return <WarehouseDashboard tab={subTab} setTab={setSubTab} />;
       case 'hospital':
@@ -98,27 +250,56 @@ export default function App() {
     }
   };
 
-  const getRoleIcon = (role) => {
+  // Get role title label (clean, without numbering)
+  const getRoleTitle = (role) => {
     switch (role) {
-      case 'admin':
-        return <Shield size={18} color="var(--primary)" />;
-      case 'donor':
-        return <Heart size={18} color="var(--primary)" fill="var(--primary)" />;
-      case 'station':
-        return <Activity size={18} color="var(--primary)" />;
-      case 'laboratory':
-        return <Activity size={18} color="#06d6a0" />;
-      case 'warehouse':
-        return <Warehouse size={18} color="#3a86ff" />;
-      case 'hospital':
-        return <Building size={18} color="#8338ec" />;
-      default:
-        return <User size={18} />;
+      case 'admin': return 'Admin Dashboard';
+      case 'donor': return 'Donor Dashboard';
+      case 'station': return 'Donation Station Dashboard';
+      case 'laboratory': return 'Laboratory Dashboard';
+      case 'warehouse': return 'Warehouse Dashboard';
+      case 'hospital': return 'Hospital Dashboard';
+      default: return 'Dashboard';
     }
   };
 
+  const getRoleBadgeTitle = (role) => {
+    switch (role) {
+      case 'admin': return 'Super Administrator';
+      case 'donor': return 'Certified Blood Donor';
+      case 'station': return 'Donation Collection Station';
+      case 'laboratory': return 'Certified Laboratory';
+      case 'warehouse': return 'Central Blood Bank Warehouse';
+      case 'hospital': return 'Partner Hospital (HMS)';
+      default: return role;
+    }
+  };
+
+  const getRoleIcon = (role) => {
+    switch (role) {
+      case 'admin':
+        return <Shield size={18} color="#ffffff" />;
+      case 'donor':
+        return <Heart size={18} color="#ffffff" fill="#ffffff" />;
+      case 'station':
+        return <Activity size={18} color="#ffffff" />;
+      case 'laboratory':
+        return <FlaskConical size={18} color="#ffffff" />;
+      case 'warehouse':
+        return <Warehouse size={18} color="#ffffff" />;
+      case 'hospital':
+        return <Building size={18} color="#ffffff" />;
+      default:
+        return <User size={18} color="#ffffff" />;
+    }
+  };
+
+  const searchResults = user ? getRoleSearchResults(user.role, searchQuery) : [];
+  const notifications = user ? getRoleNotifications(user.role) : [];
+  const unreadNotifCount = notificationsRead ? 0 : notifications.filter(n => n.unread).length;
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>
+    <div className={user ? `theme-${user.role}` : ''} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>
       
       {/* Toggling Toolbar for Guest Views */}
       {view !== 'dashboard' && view !== 'landing' && (
@@ -192,7 +373,7 @@ export default function App() {
       {view === 'dashboard' && user && (
         <div style={{ display: 'flex', flex: 1, height: '100vh', overflow: 'hidden' }}>
           
-          {/* Mobile Sidebar backdrop shadow overlay */}
+          {/* Mobile Sidebar backdrop overlay */}
           {isMobile && menuOpen && (
             <div 
               onClick={() => setMenuOpen(false)}
@@ -202,105 +383,105 @@ export default function App() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: 'rgba(0, 0, 0, 0.4)',
+                background: 'rgba(0, 0, 0, 0.5)',
                 zIndex: 9998,
-                backdropFilter: 'blur(1.5px)',
-                transition: 'opacity 0.25s ease'
+                backdropFilter: 'blur(2px)'
               }}
             />
           )}
 
+          {/* Left Sidebar Navigation */}
           <aside style={{ 
-            width: '280px', 
-            background: 'var(--bg-surface)', 
-            borderRight: '1px solid var(--border-color)', 
+            width: '240px', 
+            background: 'var(--sidebar-bg, #0f172a)', 
+            color: '#ffffff',
             display: (isMobile && !menuOpen) ? 'none' : 'flex', 
             flexDirection: 'column', 
             justifyContent: 'space-between', 
-            padding: '30px 20px', 
+            padding: '24px 16px 16px 16px', 
+            transition: 'all 0.3s ease',
+            zIndex: 9999,
             ...(isMobile ? {
               position: 'fixed',
               top: 0,
               left: 0,
               height: '100vh',
-              zIndex: 9999,
-              boxShadow: '10px 0 30px rgba(0, 0, 0, 0.4)',
-              backdropFilter: 'blur(30px)'
-            } : {
-              backdropFilter: 'blur(20px)'
-            })
+              boxShadow: '10px 0 30px rgba(0, 0, 0, 0.4)'
+            } : {})
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
               
-              {/* Header Title */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Heart size={26} color="var(--primary)" fill="var(--primary)" />
-                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+              {/* Header Title with Blood Drop Icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px' }}>
+                <div style={{ background: '#ffffff', borderRadius: '8px', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Heart size={18} color="var(--primary, #ef233c)" fill="var(--primary, #ef233c)" />
+                </div>
+                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.3px' }}>
                   Blood Bank Hub
                 </span>
               </div>
 
-              {/* User badge */}
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ background: 'rgba(239,35,60,0.1)', padding: '8px', borderRadius: '6px' }}>
-                  {getRoleIcon(user.role)}
-                </div>
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                    {user.entity_name}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {user.role} workspace
-                  </div>
-                </div>
-              </div>
-
-              {/* Dynamic Sub-Tab Sidebar Navigation */}
+              {/* Dynamic Navigation Items per Role (Settings removed, Lab screen consolidated) */}
               {(() => {
                 const navItems = [];
                 if (user.role === 'admin') {
                   navItems.push(
-                    { id: 'users', label: 'Workstation Registry', icon: <Users size={16} /> },
-                    { id: 'analytics', label: 'System Analytics', icon: <BarChart3 size={16} /> },
-                    { id: 'reminders', label: 'Reminders Panel', icon: <ToggleLeft size={16} /> },
-                    { id: 'audit', label: 'System Audit Logs', icon: <Activity size={16} /> },
-                    { id: 'resets', label: 'Password Resets', icon: <Key size={16} /> }
+                    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+                    { id: 'approvals', label: 'Workstation Approvals', icon: <Users size={16} /> },
+                    { id: 'users', label: 'Users', icon: <User size={16} /> },
+                    { id: 'audit', label: 'Audit Logs', icon: <Activity size={16} /> },
+                    { id: 'resets', label: 'Password Reset Tickets', icon: <Key size={16} /> },
+                    { id: 'analytics', label: 'System Analytics', icon: <BarChart3 size={16} /> }
                   );
                 } else if (user.role === 'donor') {
                   navItems.push(
-                    { id: 'history', label: 'My Donation History', icon: <History size={16} /> },
-                    { id: 'announcements', label: 'Central Announcements', icon: <Megaphone size={16} /> },
-                    { id: 'leaderboard', label: 'Global Leaderboard', icon: <Award size={16} /> },
-                    { id: 'appointments', label: 'Schedule Donation Slot', icon: <Calendar size={16} /> }
-                  );
-                } else if (user.role === 'hospital') {
-                  navItems.push(
-                    { id: 'internal', label: 'My Facility Stock', icon: <Package size={16} /> },
-                    { id: 'central', label: 'Central Requisitions', icon: <Truck size={16} /> },
-                    { id: 'inter', label: 'Hospital to Hospital', icon: <Building size={16} /> },
-                    { id: 'emergency', label: 'Emergency Vitals Lookup', icon: <Search size={16} /> },
-                    { id: 'hms', label: 'Patients & Orders', icon: <Stethoscope size={16} /> }
-                  );
-                } else if (user.role === 'warehouse') {
-                  navItems.push(
-                    { id: 'inventory', label: 'Inventory & Dispatch', icon: <Package size={16} /> },
-                    { id: 'announcements', label: 'Campaign Announcements', icon: <Megaphone size={16} /> }
+                    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+                    { id: 'profile', label: 'My Profile', icon: <User size={16} /> },
+                    { id: 'campaigns', label: 'Campaigns', icon: <Megaphone size={16} /> },
+                    { id: 'points', label: 'My Points', icon: <Award size={16} /> },
+                    { id: 'eligibility', label: 'Eligibility Status', icon: <CheckCircle2 size={16} /> },
+                    { id: 'history', label: 'Donation History', icon: <History size={16} /> },
+                    { id: 'messages', label: 'Messages', icon: <MessageSquare size={16} /> }
                   );
                 } else if (user.role === 'station') {
                   navItems.push(
-                    { id: 'main', label: 'Screening & Collections', icon: <Activity size={16} /> }
+                    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+                    { id: 'eligibility', label: 'Eligibility Check', icon: <CheckCircle2 size={16} /> },
+                    { id: 'collect', label: 'Collect Sample', icon: <Activity size={16} /> },
+                    { id: 'collections', label: "Today's Collections", icon: <ClipboardList size={16} /> },
+                    { id: 'donors', label: 'Donors List', icon: <Users size={16} /> },
+                    { id: 'reports', label: 'Reports', icon: <FileText size={16} /> }
                   );
                 } else if (user.role === 'laboratory') {
                   navItems.push(
-                    { id: 'main', label: 'Clinical Lab Screening', icon: <Activity size={16} /> }
+                    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+                    { id: 'pending', label: 'Pending Samples', icon: <FlaskConical size={16} /> },
+                    { id: 'records', label: 'Lab Records', icon: <ClipboardList size={16} /> },
+                    { id: 'points', label: 'Donor Points', icon: <Award size={16} /> },
+                    { id: 'reports', label: 'Reports', icon: <FileText size={16} /> },
+                    { id: 'inventory', label: 'Inventory Out', icon: <Package size={16} /> }
+                  );
+                } else if (user.role === 'warehouse') {
+                  navItems.push(
+                    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+                    { id: 'inventory', label: 'Inventory', icon: <Package size={16} /> },
+                    { id: 'incoming', label: 'Incoming Stock', icon: <Truck size={16} /> },
+                    { id: 'dispatch', label: 'Dispatch Requests', icon: <ClipboardList size={16} /> },
+                    { id: 'campaigns', label: 'Campaigns', icon: <Megaphone size={16} /> },
+                    { id: 'alerts', label: 'SMS Alerts', icon: <AlertCircle size={16} /> },
+                    { id: 'reports', label: 'Reports', icon: <FileText size={16} /> }
+                  );
+                } else if (user.role === 'hospital') {
+                  navItems.push(
+                    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+                    { id: 'request', label: 'Request Blood', icon: <Truck size={16} /> },
+                    { id: 'patients', label: 'Patients', icon: <Stethoscope size={16} /> },
+                    { id: 'stock', label: 'Available Stock', icon: <Package size={16} /> }
                   );
                 }
 
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>
-                      Navigation
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     {navItems.map(item => {
                       const isActive = subTab === item.id;
                       return (
@@ -308,25 +489,31 @@ export default function App() {
                           key={item.id}
                           onClick={() => {
                             setSubTab(item.id);
-                            setMenuOpen(false); // Auto close sidebar drawer on mobile click
+                            setMenuOpen(false);
                           }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '10px',
                             width: '100%',
-                            padding: '11px 14px',
-                            borderRadius: '6px',
+                            padding: '9px 12px',
+                            borderRadius: '8px',
                             border: 'none',
-                            background: isActive ? 'var(--bg-hover)' : 'transparent',
-                            color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                            fontWeight: isActive ? 600 : 500,
-                            fontSize: '0.85rem',
+                            background: isActive ? 'var(--primary, #ef233c)' : 'transparent',
+                            color: '#ffffff',
+                            fontWeight: isActive ? 600 : 400,
+                            fontSize: '0.82rem',
                             cursor: 'pointer',
                             textAlign: 'left',
+                            opacity: isActive ? 1 : 0.8,
                             transition: 'all 0.15s ease'
                           }}
-                          className={isActive ? 'sidebar-active' : 'sidebar-inactive'}
+                          onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.background = 'transparent';
+                          }}
                         >
                           {item.icon}
                           <span>{item.label}</span>
@@ -339,78 +526,421 @@ export default function App() {
 
             </div>
 
-            {/* Logout button */}
-            <button 
-              onClick={handleLogout}
-              className="btn"
-              style={{ width: '100%', justifyContent: 'center', background: 'rgba(239,35,60,0.1)', color: '#ef233c', border: '1px solid rgba(239,35,60,0.2)', gap: '8px', height: '42px' }}
-            >
-              <LogOut size={16} /> Sign Out Workstation
-            </button>
+            {/* User Profile Badge at Bottom of Sidebar */}
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                <div style={{ 
+                  width: '34px', 
+                  height: '34px', 
+                  borderRadius: '50%', 
+                  background: 'rgba(255, 255, 255, 0.15)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  flexShrink: 0
+                }}>
+                  {getRoleIcon(user.role)}
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    {user.entity_name || user.email?.split('@')[0]}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.65)', textTransform: 'capitalize' }}>
+                    {getRoleBadgeTitle(user.role)}
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={handleLogout} 
+                title="Sign Out" 
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'flex' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#ff6b6b'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
           </aside>
 
-          {/* Main workspace */}
-          <main style={{ flex: 1, padding: '40px', overflowY: 'auto', background: 'var(--bg-main)' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
+          {/* Main Content Workspace */}
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-main)' }}>
+            
+            {/* Top Navbar Header */}
+            <header style={{ 
+              height: '56px', 
+              background: 'var(--bg-surface)', 
+              borderBottom: '1px solid var(--border-color)', 
+              padding: '0 24px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexShrink: 0,
+              position: 'relative',
+              zIndex: 100
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 {isMobile && (
                   <button 
                     onClick={() => setMenuOpen(prev => !prev)}
                     style={{
-                      background: menuOpen ? 'rgba(239,35,60,0.1)' : 'var(--bg-surface)',
+                      background: 'none',
                       border: '1px solid var(--border-color)',
-                      color: menuOpen ? '#ef233c' : 'var(--text-secondary)',
+                      color: 'var(--text-secondary)',
                       cursor: 'pointer',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+                      padding: '6px',
+                      borderRadius: '6px',
+                      display: 'flex'
                     }}
-                    title="Toggle Workspace Menu"
                   >
-                    <Menu size={16} />
+                    <Menu size={18} />
                   </button>
                 )}
-                <div>
-                  <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>
-                    Workstation Portal
-                  </h1>
-                </div>
               </div>
+
+              {/* Search, Notifications, and Profile Controls */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                
+                {/* Role-Specific Search Field */}
+                <div ref={searchRef} style={{ position: 'relative', width: '240px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input 
+                    type="text" 
+                    placeholder={getSearchPlaceholder(user.role)}
+                    value={searchQuery}
+                    onFocus={() => setSearchFocused(true)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setSearchFocused(true);
+                    }}
+                    style={{
+                      padding: '6px 28px 6px 30px',
+                      fontSize: '0.78rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-main)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      width: '100%'
+                    }}
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+
+                  {/* Search Results Dropdown */}
+                  {searchFocused && searchQuery.trim().length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      width: '320px',
+                      marginTop: '6px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      boxShadow: 'var(--shadow-md, 0 10px 25px rgba(0,0,0,0.15))',
+                      zIndex: 1000,
+                      maxHeight: '340px',
+                      overflowY: 'auto',
+                      padding: '8px'
+                    }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', textTransform: 'uppercase' }}>
+                        Search Results ({searchResults.length})
+                      </div>
+
+                      {searchResults.length === 0 ? (
+                        <div style={{ padding: '16px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          No matches found for "{searchQuery}"
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {searchResults.map((res, i) => (
+                            <div 
+                              key={i}
+                              onClick={() => {
+                                setSubTab(res.tab);
+                                setSearchFocused(false);
+                                setSearchQuery('');
+                              }}
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                background: 'transparent',
+                                transition: 'background 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-main)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {res.title}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                  {res.desc}
+                                </div>
+                              </div>
+                              <span className="badge badge-approved" style={{ fontSize: '0.65rem' }}>
+                                {res.category}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Notification Bell Dropdown */}
+                <div ref={notifRef} style={{ position: 'relative' }}>
+                  <button 
+                    onClick={() => {
+                      setNotificationsOpen(prev => !prev);
+                      setProfileOpen(false);
+                    }}
+                    style={{
+                      position: 'relative',
+                      background: 'none',
+                      border: 'none',
+                      color: notificationsOpen ? 'var(--primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      padding: '6px',
+                      display: 'flex'
+                    }}
+                    title="Notifications"
+                  >
+                    <Bell size={18} />
+                    {unreadNotifCount > 0 && (
+                      <span style={{ 
+                        position: 'absolute', 
+                        top: '2px', 
+                        right: '2px', 
+                        width: '8px', 
+                        height: '8px', 
+                        background: '#ef233c', 
+                        borderRadius: '50%',
+                        border: '2px solid var(--bg-surface)'
+                      }} />
+                    )}
+                  </button>
+
+                  {notificationsOpen && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      width: '320px',
+                      marginTop: '10px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      boxShadow: 'var(--shadow-md, 0 10px 25px rgba(0,0,0,0.18))',
+                      zIndex: 1000,
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong style={{ fontSize: '0.88rem' }}>Notifications</strong>
+                          {unreadNotifCount > 0 && (
+                            <span className="badge badge-pending" style={{ marginLeft: '6px', fontSize: '0.68rem' }}>
+                              {unreadNotifCount} new
+                            </span>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => setNotificationsRead(true)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                        >
+                          Mark all read
+                        </button>
+                      </div>
+
+                      <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                        {notifications.map(n => (
+                          <div 
+                            key={n.id} 
+                            style={{ 
+                              padding: '10px 14px', 
+                              borderBottom: '1px solid var(--border-color)', 
+                              background: (!notificationsRead && n.unread) ? 'rgba(58,134,255,0.04)' : 'transparent',
+                              display: 'flex',
+                              gap: '10px',
+                              alignItems: 'flex-start'
+                            }}
+                          >
+                            <div style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              background: (!notificationsRead && n.unread) ? 'var(--primary)' : 'transparent',
+                              marginTop: '5px',
+                              flexShrink: 0
+                            }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                                {n.title}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                                {n.desc}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                {n.time}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Theme toggle */}
                 <button 
                   onClick={toggleTheme}
                   style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-color)',
+                    background: 'none',
+                    border: 'none',
                     color: 'var(--text-secondary)',
                     cursor: 'pointer',
-                    padding: '8px 12px',
-                    borderRadius: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600
+                    padding: '6px',
+                    display: 'flex'
                   }}
                   title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
                 >
-                  {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                  <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', background: 'rgba(6,214,160,0.08)', border: '1px solid rgba(6,214,160,0.15)', color: '#06d6a0', padding: '6px 12px', borderRadius: '20px', fontWeight: 600 }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#06d6a0', display: 'inline-block' }} />
-                  Online
+
+                {/* User Avatar & Profile Dropdown */}
+                <div ref={profileRef} style={{ position: 'relative' }}>
+                  <button 
+                    onClick={() => {
+                      setProfileOpen(prev => !prev);
+                      setNotificationsOpen(false);
+                    }}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      padding: 0, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px' 
+                    }}
+                  >
+                    <div style={{ 
+                      width: '32px', 
+                      height: '32px', 
+                      borderRadius: '50%', 
+                      background: 'var(--primary, #ef233c)', 
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                    }}>
+                      {user.entity_name ? user.entity_name[0].toUpperCase() : 'U'}
+                    </div>
+                  </button>
+
+                  {/* Profile Menu Dropdown */}
+                  {profileOpen && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      width: '240px',
+                      marginTop: '10px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      boxShadow: 'var(--shadow-md, 0 10px 25px rgba(0,0,0,0.18))',
+                      zIndex: 1000,
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {user.entity_name || user.email?.split('@')[0]}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
+                          {user.email}
+                        </div>
+                        <span className="badge badge-approved" style={{ marginTop: '6px', fontSize: '0.65rem', display: 'inline-block' }}>
+                          {getRoleBadgeTitle(user.role)}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSubTab('profile');
+                          setProfileOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-main)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <User size={15} /> My Profile
+                      </button>
+
+                      <button
+                        onClick={handleLogout}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'rgba(239,35,60,0.08)',
+                          color: '#ef233c',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,35,60,0.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,35,60,0.08)'}
+                      >
+                        <LogOut size={15} /> Sign Out
+                      </button>
+                    </div>
+                  )}
                 </div>
+
               </div>
             </header>
 
-            {/* Workstation Dashboard Page Content */}
-            <div className="animate-fade-in">
+            {/* Dashboard Scrollable View Container */}
+            <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }} className="animate-fade-in">
               {renderDashboardContent()}
             </div>
+
           </main>
 
         </div>
