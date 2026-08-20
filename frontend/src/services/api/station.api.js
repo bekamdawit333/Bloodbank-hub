@@ -26,6 +26,29 @@ export const stationApi = {
     });
     return handleResponse(response);
   },
+  collectSample: async (sampleData) => {
+    const payload = {
+      fayda_id: sampleData.fayda_id || sampleData.faydaId,
+      donor_id: sampleData.donor_id || sampleData.donorId,
+      blood_type: sampleData.blood_type || sampleData.bloodType,
+      lab_id: sampleData.lab_id || sampleData.labId,
+      health_notes: sampleData.health_notes || (sampleData.screening_data ? JSON.stringify(sampleData.screening_data) : null),
+    };
+    const response = await fetch(`${BASE_URL}/station/samples`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  registerAndCollect: async (payload) => {
+    const response = await fetch(`${BASE_URL}/station/register-and-collect`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
   getSamples: async () => {
     const response = await fetch(`${BASE_URL}/station/samples`, {
       method: 'GET',
@@ -35,6 +58,20 @@ export const stationApi = {
   },
   getLabs: async () => {
     const response = await fetch(`${BASE_URL}/station/labs`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  getDonorsList: async () => {
+    const response = await fetch(`${BASE_URL}/station/donors`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  getReports: async () => {
+    const response = await fetch(`${BASE_URL}/station/reports`, {
       method: 'GET',
       headers: getHeaders(),
     });
