@@ -4,24 +4,27 @@ const prisma = new PrismaClient();
 
 const admitPatient = async (req, res) => {
   const hospital_id = req.user.id;
-  const { full_name, age, gender, blood_type, fayda_id, ward, bed_number, diagnosis } = req.body;
+  let { full_name, age, gender, blood_type, fayda_id, ward, bed_number, diagnosis } = req.body;
 
-  if (!full_name || !age || !gender || !blood_type || !ward || !bed_number) {
-    return res.status(400).json({ error: 'full_name, age, gender, blood_type, ward, and bed_number are required.' });
+  if (!full_name || !age || !gender || !blood_type) {
+    return res.status(400).json({ error: 'full_name, age, gender, and blood_type are required.' });
   }
+
+  ward = ward ? String(ward).trim() : 'General Ward';
+  bed_number = bed_number ? String(bed_number).trim() : 'Bed 01';
 
   try {
     const patient = await prisma.patient.create({
       data: {
         hospital_id,
-        full_name,
+        full_name: String(full_name).trim(),
         age: parseInt(age),
-        gender,
+        gender: String(gender).toLowerCase(),
         blood_type,
-        fayda_id: fayda_id || null,
+        fayda_id: fayda_id ? String(fayda_id).trim() : null,
         ward,
         bed_number,
-        diagnosis: diagnosis || null,
+        diagnosis: diagnosis ? String(diagnosis).trim() : null,
         admission_status: 'admitted',
       },
     });
@@ -45,7 +48,6 @@ const getPatients = async (req, res) => {
       include: {
         bloodOrders: {
           orderBy: { ordered_at: 'desc' },
-          take: 1, 
         },
       },
       orderBy: { admitted_at: 'desc' },
