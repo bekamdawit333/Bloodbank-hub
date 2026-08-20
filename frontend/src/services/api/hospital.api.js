@@ -59,7 +59,26 @@ export const hospitalApi = {
     });
     return handleResponse(response);
   },
+  requestInterHospital: async (bloodType, unitsNeeded, receiverId) => {
+    const response = await fetch(`${BASE_URL}/hospital/inter-requests`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        blood_type: bloodType,
+        units_needed: unitsNeeded,
+        receiver_id: receiverId || null,
+      }),
+    });
+    return handleResponse(response);
+  },
   fulfillInterHospitalRequest: async (requestId) => {
+    const response = await fetch(`${BASE_URL}/hospital/inter-requests/${requestId}/fulfill`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  fulfillInterHospital: async (requestId) => {
     const response = await fetch(`${BASE_URL}/hospital/inter-requests/${requestId}/fulfill`, {
       method: 'POST',
       headers: getHeaders(),
