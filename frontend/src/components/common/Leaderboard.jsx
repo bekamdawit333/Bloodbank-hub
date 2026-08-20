@@ -1,4 +1,4 @@
-﻿
+
 import React from 'react';
 import { Award, Heart } from 'lucide-react';
 
