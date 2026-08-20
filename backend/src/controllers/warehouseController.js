@@ -148,3 +148,22 @@ async function fulfillHospitalRequest(req, res) {
         data: { status: 'fulfilled' }
       });
     });
+        await logAction(
+      req.user.id,
+      'HOSPITAL_REQUEST_FULFILLED',
+      `Fulfilled request ${id} for hospital ${request.hospital.entity_name}. Quantity: ${request.units_needed} bags of type ${request.blood_type}.`
+    );
+
+    // Emit real-time WebSocket notification
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('requisition_updated', {
+        type: 'FULFILL',
+        requestId: id,
+        hospital_id: request.hospital_id,
+        blood_type: request.blood_type,
+        units_needed: request.units_needed
+      });
+    }
+ 
+    res.json({ message: 'Request fulfilled successfully. Inventory dispatched.' });
