@@ -6,8 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
-    "prisma:generate": "prisma generate --schema=prisma/schema.prisma && prisma generate --schema=prisma/lab.prisma",
-    "prisma:push": "prisma db push --schema=prisma/schema.prisma && prisma db push --schema=prisma/lab.prisma",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma && prisma generate --schema=prisma/lab/schema.prisma",
+    "prisma:push": "prisma db push --schema=prisma/schema.prisma && prisma db push --schema=prisma/lab/schema.prisma",
     "prisma:seed": "node prisma/seed.js"
   },
   "keywords": [],

@@ -55,10 +55,10 @@ async function main() {
   const donor2 = await mainDb.donor.create({
     data: {
       fayda_id: "ET-002",
-      name: "Marta Kebede",
-      phone: "+251912345678",
-      dob: new Date("1995-08-20"),
-      gender: "Female",
+      name: "Bekam Dawit",
+      phone: "+251993159018",
+      dob: new Date("1998-08-20"),
+      gender: "Male",
       address: "Kazanchis, Addis Ababa",
       blood_type: "UNKNOWN",
       last_donation_date: null,
@@ -66,67 +66,6 @@ async function main() {
       points: 0,
     },
   });
-
-  const donor3 = await mainDb.donor.create({
-    data: {
-      fayda_id: "ET-003",
-      name: "Almaz Tolosa",
-      phone: "+251913456789",
-      dob: new Date("1988-12-02"),
-      gender: "Female",
-      address: "Hawassa",
-      blood_type: "UNKNOWN",
-      last_donation_date: null,
-      health_status: "unknown",
-      points: 0,
-    },
-  });
-
-  const donor4 = await mainDb.donor.create({
-    data: {
-      fayda_id: "ET-004",
-      name: "Bekele Lemma",
-      phone: "+251914567890",
-      dob: new Date("1982-03-30"),
-      gender: "Male",
-      address: "Adama",
-      blood_type: "UNKNOWN",
-      last_donation_date: null,
-      health_status: "unknown",
-      points: 0,
-    },
-  });
-
-  const donor5 = await mainDb.donor.create({
-    data: {
-      fayda_id: "ET-005",
-      name: "Adnan Abdulkadr",
-      phone: "+251985340573",
-      dob: new Date("1997-10-12"),
-      gender: "Male",
-      address: "Bahir Dar",
-      blood_type: "UNKNOWN",
-      last_donation_date: null,
-      health_status: "unknown",
-      points: 0,
-    },
-  });
-
-  const donor6 = await mainDb.donor.create({
-    data: {
-      fayda_id: "ET-006",
-      name: "Samuel Negash",
-      phone: "+251916789012",
-      dob: new Date("1992-06-18"),
-      gender: "Male",
-      address: "Mekelle",
-      blood_type: "UNKNOWN",
-      last_donation_date: null,
-      health_status: "unknown",
-      points: 0,
-    },
-  });
-
   console.log("Seeded PostgreSQL FAYDA donor profiles.");
 
   // 6. Seed Lab Database records (Patient Medical Profiles)
@@ -149,8 +88,8 @@ async function main() {
   await labDb.labMedicalRecord.create({
     data: {
       faydaId: "ET-002",
-      name: "Marta Kebede",
-      phone: "+251912345678",
+      name: "Bekam Dawit",
+      phone: "+251993159018",
       bloodType: "O-",
       diseases: "HIV: Negative, Syphilis: Negative, Hepatitis B: Negative",
       hemoglobin: "12.5 g/dL",
