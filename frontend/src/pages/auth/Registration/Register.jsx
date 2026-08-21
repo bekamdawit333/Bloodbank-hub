@@ -54,10 +54,6 @@ export default function Register({ onNavigateToLogin }) {
 
       setSuccessMsg(data.message);
 
-      if (data.code) {
-        console.log('[DEBUG] Verification Code:', data.code);
-      }
-
       setStep(2);
     } catch (err) {
       setError(
@@ -99,10 +95,7 @@ export default function Register({ onNavigateToLogin }) {
     setError(null);
     setSuccessMsg(null);
     // Re-use the same send-email endpoint — it will generate a fresh code
-    const data = await api.auth.registerVerifyEmail(email);
-    if (data.code) {
-      console.log('[DEBUG] Resent Verification Code:', data.code);
-    }
+    await api.auth.registerVerifyEmail(email);
     // Success message handled inside DonorCodeStep component
   };
 

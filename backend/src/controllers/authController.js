@@ -3,13 +3,26 @@ const jwt = require("jsonwebtoken");
 const { mainDb } = require("../config/prisma");
 const { JWT_SECRET } = require("../middleware/auth");
 
+// Security: verification codes must never appear in logs or API responses.
+// Local development without BREVO_API_KEY can opt in explicitly via
+// SHOW_OTP_IN_LOGS=true in .env. Never enable this outside development.
+function shouldLogOtp() {
+  return process.env.SHOW_OTP_IN_LOGS === "true";
+}
+
 // Helper to send transactional email using Brevo API
 async function sendBrevoEmail(toEmail, code) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.log(
-      `[Brevo Mock] No API Key set. Email to: ${toEmail} Code: ${code}`,
-    );
+    if (shouldLogOtp()) {
+      console.log(
+        `[Brevo Mock] No API Key set. Email to: ${toEmail} Code: ${code}`,
+      );
+    } else {
+      console.log(
+        `[Brevo Mock] No API Key set. Verification email to: ${toEmail} not delivered.`,
+      );
+    }
     return;
   }
 
@@ -54,9 +67,7 @@ async function sendBrevoEmail(toEmail, code) {
       const errorText = await response.text();
       console.error("[Brevo Error Response]:", errorText);
     } else {
-      console.log(
-        `[Brevo Email Sent] Verification code ${code} sent to ${toEmail}`,
-      );
+      console.log(`[Brevo Email Sent] Verification email sent to ${toEmail}`);
     }
   } catch (err) {
     console.error("[Brevo Email Send Error]:", err.message);
@@ -66,9 +77,15 @@ async function sendBrevoEmail(toEmail, code) {
 async function sendForgotPasswordEmail(toEmail, code) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.log(
-      `[Brevo Mock] No API Key set. Forgot Password Email to: ${toEmail} Code: ${code}`,
-    );
+    if (shouldLogOtp()) {
+      console.log(
+        `[Brevo Mock] No API Key set. Forgot Password Email to: ${toEmail} Code: ${code}`,
+      );
+    } else {
+      console.log(
+        `[Brevo Mock] No API Key set. Password reset email to: ${toEmail} not delivered.`,
+      );
+    }
     return;
   }
 
@@ -113,9 +130,7 @@ async function sendForgotPasswordEmail(toEmail, code) {
       const errorText = await response.text();
       console.error("[Brevo Error Response]:", errorText);
     } else {
-      console.log(
-        `[Brevo Email Sent] Password reset code ${code} sent to ${toEmail}`,
-      );
+      console.log(`[Brevo Email Sent] Password reset email sent to ${toEmail}`);
     }
   } catch (err) {
     console.error("[Brevo Email Send Error]:", err.message);
@@ -150,17 +165,13 @@ async function registerVerifyEmail(req, res) {
     // Send transactional email via Brevo
     await sendBrevoEmail(email, code);
 
-    // Also fallback to print in server console log for debug
-    console.log(`\n======================================================`);
-    console.log(`[EMAIL SYSTEM VERIFICATION MOCK]`);
-    console.log(`To: ${email}`);
-    console.log(`Verification Code: ${code}`);
-    console.log(`Expires in: 10 minutes`);
-    console.log(`======================================================\n`);
+    // Dev-only convenience: codes are never logged unless explicitly enabled
+    if (shouldLogOtp()) {
+      console.log(`[EMAIL DEV MODE] Verification code for ${email}: ${code}`);
+    }
 
     res.json({
       message: "Verification code sent to email successfully.",
-      code, // return in response for easy testing/automated scripts
     });
   } catch (err) {
     console.error(err);
@@ -522,17 +533,14 @@ async function forgotPassword(req, res) {
 
       await sendForgotPasswordEmail(email, code);
 
-      console.log(`\n======================================================`);
-      console.log(`[PASSWORD RESET CODE MOCK]`);
-      console.log(`To: ${email}`);
-      console.log(`Reset Code: ${code}`);
-      console.log(`Expires in: 10 minutes`);
-      console.log(`======================================================\n`);
+      // Dev-only convenience: codes are never logged unless explicitly enabled
+      if (shouldLogOtp()) {
+        console.log(`[PASSWORD RESET DEV MODE] Reset code for ${email}: ${code}`);
+      }
 
       return res.json({
         role: "donor",
         message: "Verification code sent to your email successfully.",
-        code, // return in response for easy testing
       });
     } else {
       // Other roles use Admin reset ticket flow

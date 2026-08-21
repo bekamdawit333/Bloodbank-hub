@@ -12,6 +12,120 @@ BloodBank_hub is a secure, coordinated web application designed to manage the li
 
 ---
 
+## Quick Start with Docker (Any Platform)
+
+The entire stack (frontend + backend + PostgreSQL database) runs in containers. Works on **Windows**, **macOS**, and **Linux**.
+
+### 1. Prerequisites
+
+| Platform | What to install |
+|----------|----------------|
+| Windows 10/11 | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) (includes Compose). Use PowerShell or CMD. |
+| macOS (Intel / Apple Silicon) | [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/) |
+| Linux (Ubuntu/Debian/Fedora etc.) | [Docker Engine](https://docs.docker.com/engine/install/) + the Compose plugin |
+
+Verify the installation:
+
+```bash
+docker --version
+docker compose version    # if this fails, try: docker-compose --version
+```
+
+> Throughout this guide, replace `docker compose` with `docker-compose` if you have the standalone version.
+
+### 2. Get the source code
+
+```bash
+git clone <your-repo-url>
+cd Bloodbank-hub
+```
+
+### 3. Configure environment variables
+
+Create `.env` files from the provided template:
+
+```bash
+# macOS / Linux
+cp .env.example .env
+cp .env.example backend/.env
+
+# Windows (PowerShell)
+copy .env.example .env
+copy .env.example backend/.env
+```
+
+Open `.env` and set:
+
+```env
+DB_PASSWORD=your_secret_password
+JWT_SECRET=any_long_random_string
+
+# IMPORTANT: inside Docker the database host is "postgres" (NOT localhost).
+DATABASE_URL=postgresql://postgres:your_secret_password@postgres:5432/bloodbank?schema=public
+LAB_DATABASE_URL=postgresql://postgres:your_secret_password@postgres:5432/bloodbank_lab?schema=public
+
+SEED_DB=true   # set true ONCE to fill the database with sample data
+```
+
+Keep the values identical in both `.env` and `backend/.env`.
+
+### 4. Build and start everything
+
+```bash
+docker compose up -d --build
+```
+
+This starts three services. On first launch the backend automatically:
+
+1. waits for PostgreSQL,
+2. generates Prisma clients,
+3. applies all database migrations,
+4. seeds sample data (if `SEED_DB=true`),
+5. starts the API server.
+
+Watch the startup progress:
+
+```bash
+docker compose logs -f backend
+```
+
+Wait until you see `[API Server] Running on http://localhost:5000`, then press `Ctrl+C` to exit the logs.
+
+### 5. Open the app
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| Frontend (React/Vite) | http://localhost:5174 | main app |
+| Backend REST API | http://localhost:5000 | e.g. `/api/...` endpoints |
+| PostgreSQL | localhost:5434 | connect from DB tools with user/password from `.env` |
+
+### Daily commands
+
+```bash
+docker compose ps                 # show status of all services
+docker compose logs -f backend    # follow backend logs
+docker compose stop               # stop containers (data is kept)
+docker compose start              # start again
+docker compose down               # remove containers (database volume is kept)
+docker compose down -v            # WARNING: also deletes ALL database data
+```
+
+### Troubleshooting
+
+*   **Changed something in `.env` but nothing happened?** Environment variables are read when a container is *created*, not restarted. Recreate it:
+    ```bash
+    docker compose up -d --force-recreate backend frontend
+    ```
+*   **Backend error `P1001: Can't reach database server at localhost:5432`** - your `DATABASE_URL` uses `localhost`. Inside Docker it must be the hostname `postgres`.
+*   **Backend error `P1000: Authentication failed`** - the database volume was created earlier with a different password than `.env`. Easiest fix (deletes DB data):
+    ```bash
+    docker compose down -v && docker compose up -d --build
+    ```
+*   **Port already in use?** Stop whatever occupies 5000/5174/5434, or change the left side of the port mappings in `docker-compose.yml` (e.g. `"5001:5000"` then use port 5001).
+*   **Frontend loads but no data?** Make sure the backend is healthy (`docker compose ps`) and that `VITE_API_URL=http://localhost:5000/api` in `.env`. If you edit `VITE_API_URL` you must rebuild the frontend container.
+
+---
+
 ## 1. Key Problems Resolved
 
 *   **Lack of Information Security in Manual Systems:** In legacy paper-based or basic electronic registries, donor personal information and medical records were unsecured. Any general hospital employee or collection station worker could read, copy, or browse private records. The new system enforces strict access control, ensuring that individuals who have no functional relation to the donation case or medical file have limited or no access to that sensitive data.
