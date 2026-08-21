@@ -215,8 +215,41 @@ async function getDonorMessages(req, res) {
   }
 }
 
+// Return full donation history for the authenticated donor
+async function getDonorHistory(req, res) {
+  try {
+    const donor = await mainDb.donor.findUnique({ where: { user_id: req.user.id } });
+    if (!donor) return res.status(404).json({ error: 'Donor profile not found for this user.' });
+
+    const history = await mainDb.bloodSample.findMany({
+      where: { fayda_id: donor.fayda_id },
+      include: {
+        station: { select: { entity_name: true } },
+        lab: { select: { entity_name: true } }
+      },
+      orderBy: { collected_at: 'desc' }
+    });
+
+    const formattedHistory = history.map(h => ({
+      id: h.id,
+      collected_at: h.collected_at,
+      blood_type: h.blood_type,
+      status: h.status,
+      health_notes: h.health_notes,
+      station_name: h.station ? h.station.entity_name : null,
+      lab_name: h.lab ? h.lab.entity_name : 'Pending Screen'
+    }));
+
+    res.json(formattedHistory);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch donor history' });
+  }
+}
+
 module.exports = {
   getDonorDashboardInfo,
   getStationsList,
   getDonorMessages,
+  getDonorHistory,
 };

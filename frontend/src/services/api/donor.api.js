@@ -16,6 +16,13 @@ export const donorApi = {
     });
     return handleResponse(response);
   },
+  getHistory: async () => {
+    const response = await fetch(`${BASE_URL}/donor/history`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
   getMessages: async () => {
     const response = await fetch(`${BASE_URL}/donor/messages`, {
       method: 'GET',
