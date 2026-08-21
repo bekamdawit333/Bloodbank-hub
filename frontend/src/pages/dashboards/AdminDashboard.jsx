@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, BarChart3, ToggleLeft, ShieldCheck, ShieldAlert, Activity, Key, Check, X, 
   Building, Warehouse, Heart, TrendingUp, TrendingDown, ArrowRight, Clock, 
-  UserCheck, AlertCircle, FileText, CheckCircle2, RefreshCw
+  UserCheck, AlertCircle, FileText, CheckCircle2, RefreshCw, Eye, EyeOff
 } from 'lucide-react';
 import { api } from '../../services/api';
 import Analytics from '../../components/common/Analytics';
@@ -22,6 +22,7 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
   const [resetRequests, setResetRequests] = useState([]);
   const [activeRequest, setActiveRequest] = useState(null);
   const [tempPassword, setTempPassword] = useState('');
+  const [showTempPassword, setShowTempPassword] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
 
   const loadData = async () => {
@@ -728,13 +729,16 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1, minWidth: '180px' }}>
                   <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Temporary New Password</label>
-                  <input
-                    type="text"
-                    placeholder="Enter temp password"
-                    value={tempPassword}
-                    onChange={(e) => setTempPassword(e.target.value)}
-                    style={{ width: '100%', boxSizing: 'border-box' }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showTempPassword ? 'text' : 'password'}
+                      placeholder="Enter temp password"
+                      value={tempPassword}
+                      onChange={(e) => setTempPassword(e.target.value)}
+                      style={{ width: '100%', boxSizing: 'border-box', paddingRight: '42px' }}
+                    />
+                    <button type="button" onClick={() => setShowTempPassword((value) => !value)} title={showTempPassword ? 'Hide password' : 'Show password'} aria-label={showTempPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}>{showTempPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  </div>
                 </div>
                 <button onClick={() => handleResolveReset(activeRequest.id)} className="btn btn-primary" style={{ height: '36px', background: '#f77f00', borderColor: '#f77f00', fontSize: '0.82rem' }} disabled={loading}>
                   Save & Resolve Ticket

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   User, ShieldCheck, Key, Mail, Building, Phone, MapPin, 
-  Award, Droplet, Calendar, CheckCircle2, Lock, ArrowLeft, RefreshCw, X 
+  Award, Droplet, Calendar, CheckCircle2, Lock, ArrowLeft, RefreshCw, X, Eye, EyeOff
 } from 'lucide-react';
 import { api } from '../../services/api';
 import BottomToast from './BottomToast';
@@ -17,6 +17,9 @@ export default function ProfileView({ user, setTab, onBack }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -272,13 +275,14 @@ export default function ProfileView({ user, setTab, onBack }) {
               <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Current Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
-                  type="password" 
+                  type={showCurrentPassword ? 'text' : 'password'}
                   placeholder="••••••••" 
                   value={currentPassword} 
                   onChange={(e) => setCurrentPassword(e.target.value)} 
                   required 
-                  style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
+                  style={{ width: '100%', paddingRight: '42px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
                 />
+                <button type="button" onClick={() => setShowCurrentPassword((value) => !value)} title={showCurrentPassword ? 'Hide password' : 'Show password'} aria-label={showCurrentPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}>{showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
             </div>
 
@@ -286,13 +290,14 @@ export default function ProfileView({ user, setTab, onBack }) {
               <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>New Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
-                  type="password" 
+                  type={showNewPassword ? 'text' : 'password'}
                   placeholder="Min. 6 characters" 
                   value={newPassword} 
                   onChange={(e) => setNewPassword(e.target.value)} 
                   required 
-                  style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
+                  style={{ width: '100%', paddingRight: '42px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--input-border)' }}
                 />
+                <button type="button" onClick={() => setShowNewPassword((value) => !value)} title={showNewPassword ? 'Hide password' : 'Show password'} aria-label={showNewPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}>{showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
             </div>
 
@@ -300,13 +305,14 @@ export default function ProfileView({ user, setTab, onBack }) {
               <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Confirm New Password</label>
               <div style={{ position: 'relative' }}>
                 <input 
-                  type="password" 
+                  type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Repeat new password" 
                   value={confirmPassword} 
                   onChange={(e) => setConfirmPassword(e.target.value)} 
                   required 
                   style={{ 
                     width: '100%', 
+                    paddingRight: '42px',
                     background: 'var(--input-bg)', 
                     color: 'var(--text-primary)', 
                     border: newPassword && confirmPassword && newPassword !== confirmPassword 
@@ -314,6 +320,7 @@ export default function ProfileView({ user, setTab, onBack }) {
                       : '1px solid var(--input-border)'
                   }}
                 />
+                <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} title={showConfirmPassword ? 'Hide password' : 'Show password'} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}>{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
               {newPassword && confirmPassword && newPassword !== confirmPassword && (
                 <span style={{ color: '#ef233c', fontSize: '0.72rem', marginTop: '4px', display: 'block' }}>&#x2717; Passwords do not match</span>
