@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserPlus } from 'lucide-react';
+import SelectDropdown from '../../../components/common/SelectDropdown';
 
 export default function DonorProfileStep({
   password,
@@ -157,15 +158,16 @@ export default function DonorProfileStep({
               Gender
             </label>
 
-            <select
+            <SelectDropdown
               value={gender}
-              onChange={(e) => setGender(e.target.value)}
+              onChange={setGender}
               disabled={faydaLinked}
-              className="register-input"
-            >
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
+              ariaLabel="Gender"
+              options={[
+                { value: 'Male', label: 'Male' },
+                { value: 'Female', label: 'Female' }
+              ]}
+            />
           </div>
 
         </div>

@@ -7,7 +7,7 @@ import {
 import { api } from '../../services/api';
 import Analytics from '../../components/common/Analytics';
 
-export default function AdminDashboard({ tab = 'dashboard', setTab }) {
+export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) {
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -432,19 +432,19 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {filteredUsers.map(u => (
                     <tr key={u.id}>
-                      <td style={{ fontWeight: 600 }}>{u.email}</td>
-                      <td>
+                      <td data-label="Workstation Email" style={{ fontWeight: 600 }}>{u.email}</td>
+                      <td data-label="Role Workspace">
                         <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontWeight: 700 }}>
                           {u.role}
                         </span>
                       </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{u.entity_name}</td>
-                      <td>
+                      <td data-label="Facility Name" style={{ color: 'var(--text-secondary)' }}>{u.entity_name}</td>
+                      <td data-label="Approval Status">
                         <span className={`badge badge-${u.status}`}>
                           {u.status}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                           {u.status !== 'approved' && (
                             <button 
@@ -531,9 +531,9 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
                       <tbody>
                         {remindersResult.details.map((d, index) => (
                           <tr key={index}>
-                            <td style={{ fontWeight: 600 }}>{d.donor}</td>
-                            <td>{d.phone}</td>
-                            <td style={{ color: 'var(--text-secondary)' }}>
+                            <td data-label="Donor Name" style={{ fontWeight: 600 }}>{d.donor}</td>
+                            <td data-label="Phone Number">{d.phone}</td>
+                            <td data-label="Last Donation Date" style={{ color: 'var(--text-secondary)' }}>
                               {new Date(d.lastDonation).toLocaleDateString()}
                             </td>
                           </tr>
@@ -576,22 +576,22 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {auditLogs.map((log, index) => (
                     <tr key={log.id || index}>
-                      <td style={{ fontWeight: 600 }}>
+                      <td data-label="Workstation User" style={{ fontWeight: 600 }}>
                         {log.user?.entity_name || 'System'} ({log.user?.email || 'N/A'})
                       </td>
-                      <td>
+                      <td data-label="Role">
                         <span className="badge" style={{ background: 'rgba(58,134,255,0.1)', color: '#3a86ff', fontSize: '0.72rem' }}>
                           {log.user?.role?.toUpperCase() || 'SYSTEM'}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Action">
                         <span style={{ fontWeight: '700', fontSize: '0.78rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)' }}>
                           {log.action}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.82rem' }}>{log.details}</td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{log.ip_address}</td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      <td data-label="Log Details" style={{ fontSize: '0.82rem' }}>{log.details}</td>
+                      <td data-label="IP Address" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{log.ip_address}</td>
+                      <td data-label="Timestamp" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                     </tr>
@@ -668,22 +668,22 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {resetRequests.map(r => (
                     <tr key={r.id}>
-                      <td style={{ fontWeight: 600 }}>{r.email}</td>
-                      <td>
+                      <td data-label="Workstation Email" style={{ fontWeight: 600 }}>{r.email}</td>
+                      <td data-label="Role">
                         <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: 'rgba(255,255,255,0.04)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', fontWeight: 700 }}>
                           {r.role}
                         </span>
                       </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{r.entity_name}</td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                      <td data-label="Entity Name" style={{ color: 'var(--text-secondary)' }}>{r.entity_name}</td>
+                      <td data-label="Date Requested" style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                         {new Date(r.created_at).toLocaleString()}
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span className={`badge badge-${r.status}`}>
                           {r.status}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td data-label="Action" className="cell-actions" style={{ textAlign: 'right' }}>
                         {r.status === 'pending' ? (
                           <button
                             onClick={() => {

@@ -53,18 +53,18 @@ export default function Leaderboard({ data }) {
                 background: idx < 3 ? 'rgba(239, 35, 60, 0.03)' : 'transparent',
                 transition: 'all 0.2s ease'
               }}>
-                <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                <td data-label="Rank" style={{ textAlign: 'center', fontWeight: 'bold' }}>
                   {getRankBadge(idx + 1)}
                 </td>
-                <td style={{ fontWeight: idx < 3 ? 600 : 500 }}>
+                <td data-label="Donor Name" style={{ fontWeight: idx < 3 ? 600 : 500 }}>
                   {donor.name}
                   {idx === 0 && <span style={{ marginLeft: '8px', fontSize: '0.75rem', background: 'gold', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Hero</span>}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td data-label="Blood Type" style={{ textAlign: 'center' }}>
                   <span className="badge-blood-type">{donor.blood_type}</span>
                 </td>
-                <td style={{ textAlign: 'center', fontWeight: 600 }}>{donor.total_donations}</td>
-                <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--primary)' }}>
+                <td data-label="Donations" style={{ textAlign: 'center', fontWeight: 600 }}>{donor.total_donations}</td>
+                <td data-label="Points" style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--primary)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <Heart size={12} fill="var(--primary)" style={{ strokeWidth: 0 }} />
                     {donor.points} pts

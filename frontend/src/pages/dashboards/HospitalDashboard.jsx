@@ -5,9 +5,10 @@ import {
   CheckCircle, Droplet, Clock, ArrowRight, CheckCircle2, Users, Building, AlertCircle, Calendar
 } from 'lucide-react';
 import { api } from '../../services/api';
+import SelectDropdown from '../../components/common/SelectDropdown';
 import { io } from 'socket.io-client';
 
-export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
+export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile }) {
   const [internalStock, setInternalStock] = useState([]);
   const [requisitions, setRequisitions] = useState([]);
   const [interRequests, setInterRequests] = useState([]);
@@ -489,7 +490,7 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
 
       {/* REQUEST BLOOD / MY REQUESTS TAB */}
       {(tab === 'request' || tab === 'requests' || tab === 'central') && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.3fr', gap: '20px', alignItems: 'start' }}>
           
           {/* Order Placement Form */}
           <div className="dashboard-card animate-fade-in">
@@ -501,11 +502,12 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
             <form onSubmit={handleCreateRequisition} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Required Blood Type</label>
-                <select value={reqBloodType} onChange={(e) => setReqBloodType(e.target.value)}>
-                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                    <SelectDropdown
+                      value={reqBloodType}
+                      onChange={setReqBloodType}
+                      ariaLabel="Required Blood Type"
+                      options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))}
+                    />
               </div>
 
               <div>
@@ -543,19 +545,19 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
                   <tbody>
                     {requisitions.map(r => (
                       <tr key={r.id}>
-                        <td style={{ fontWeight: 600 }}>{r.id.substring(0, 8)}...</td>
-                        <td>
+                        <td data-label="Order ID" style={{ fontWeight: 600 }}>{r.id.substring(0, 8)}...</td>
+                        <td data-label="Blood Type">
                           <span style={{ background: 'rgba(13,148,136,0.1)', color: '#0d9488', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                             {r.blood_type}
                           </span>
                         </td>
-                        <td>{r.units_needed} units</td>
-                        <td>
+                        <td data-label="Units">{r.units_needed} units</td>
+                        <td data-label="Status">
                           <span className={`badge badge-${r.status}`}>
                             {r.status}
                           </span>
                         </td>
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        <td data-label="Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           {new Date(r.created_at).toLocaleDateString()}
                         </td>
                       </tr>
@@ -573,7 +575,7 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
               <p>Borrow or transfer critical blood reserves directly with nearby partner hospitals in real time.</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '20px', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr', gap: '20px', alignItems: 'start' }}>
               
               {/* Broadcast H2H Request Form */}
               <div style={{ background: 'var(--bg-main)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -583,11 +585,12 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
                 <form onSubmit={handleInterHospitalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Group</label>
-                    <select value={interBloodType} onChange={(e) => setInterBloodType(e.target.value)}>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    <SelectDropdown
+                      value={interBloodType}
+                      onChange={setInterBloodType}
+                      ariaLabel="Blood Group"
+                      options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Units Needed</label>
@@ -623,19 +626,19 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
                       <tbody>
                         {interRequests.map(r => (
                           <tr key={r.id}>
-                            <td style={{ fontWeight: 600 }}>{r.requester_name || 'Regional Hospital'}</td>
-                            <td>
+                            <td data-label="Requesting Facility" style={{ fontWeight: 600 }}>{r.requester_name || 'Regional Hospital'}</td>
+                            <td data-label="Blood Type">
                               <span style={{ background: 'rgba(58,134,255,0.1)', color: '#3a86ff', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                                 {r.blood_type}
                               </span>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{r.units_needed} units</td>
-                            <td>
+                            <td data-label="Units" style={{ fontWeight: 600 }}>{r.units_needed} units</td>
+                            <td data-label="Status">
                               <span className="badge badge-pending">
                                 {r.status}
                               </span>
                             </td>
-                            <td style={{ textAlign: 'right' }}>
+                            <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                               <button
                                 onClick={() => handleFulfillInterHospital(r.id)}
                                 className="btn btn-primary"
@@ -686,7 +689,7 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
               </div>
 
               <form onSubmit={handleAdmitPatient} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Patient Full Name</label>
                     <input type="text" placeholder="e.g. Almaz Tadesse" value={admitForm.full_name} onChange={(e) => setAdmitForm({ ...admitForm, full_name: e.target.value })} required />
@@ -697,41 +700,52 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Age</label>
                     <input type="number" placeholder="e.g. 35" value={admitForm.age} onChange={(e) => setAdmitForm({ ...admitForm, age: e.target.value })} required />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Gender</label>
-                    <select value={admitForm.gender} onChange={(e) => setAdmitForm({ ...admitForm, gender: e.target.value })}>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
+                    <SelectDropdown
+                      value={admitForm.gender}
+                      onChange={(v) => setAdmitForm({ ...admitForm, gender: v })}
+                      ariaLabel="Gender"
+                      options={[
+                        { value: 'male', label: 'Male' },
+                        { value: 'female', label: 'Female' }
+                      ]}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Type</label>
-                    <select value={admitForm.blood_type} onChange={(e) => setAdmitForm({ ...admitForm, blood_type: e.target.value })}>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    <SelectDropdown
+                      value={admitForm.blood_type}
+                      onChange={(v) => setAdmitForm({ ...admitForm, blood_type: v })}
+                      ariaLabel="Blood Type"
+                      options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))}
+                    />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Hospital Ward</label>
-                    <select value={admitForm.ward || 'ICU'} onChange={(e) => setAdmitForm({ ...admitForm, ward: e.target.value })}>
-                      <option value="ICU">ICU (Intensive Care Unit)</option>
-                      <option value="Emergency">Emergency & Trauma</option>
-                      <option value="Surgery">Surgical Ward</option>
-                      <option value="Maternity">Maternity & Obstetrics</option>
-                      <option value="Pediatrics">Pediatrics</option>
-                      <option value="Internal Medicine">Internal Medicine</option>
-                      <option value="Oncology">Oncology</option>
-                      <option value="General Ward">General Ward</option>
-                    </select>
+                    <SelectDropdown
+                      value={admitForm.ward || 'ICU'}
+                      onChange={(v) => setAdmitForm({ ...admitForm, ward: v })}
+                      ariaLabel="Hospital Ward"
+                      options={[
+                        { value: 'ICU', label: 'ICU (Intensive Care Unit)' },
+                        { value: 'Emergency', label: 'Emergency & Trauma' },
+                        { value: 'Surgery', label: 'Surgical Ward' },
+                        { value: 'Maternity', label: 'Maternity & Obstetrics' },
+                        { value: 'Pediatrics', label: 'Pediatrics' },
+                        { value: 'Internal Medicine', label: 'Internal Medicine' },
+                        { value: 'Oncology', label: 'Oncology' },
+                        { value: 'General Ward', label: 'General Ward' }
+                      ]}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Bed / Room Number</label>
@@ -765,17 +779,15 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
               </div>
 
               <form onSubmit={handleCreateBloodOrder} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Required Blood Type</label>
-                    <select 
-                      value={orderForm.blood_type || selectedPatient.blood_type} 
-                      onChange={(e) => setOrderForm({ ...orderForm, blood_type: e.target.value })}
-                    >
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    <SelectDropdown
+                      value={orderForm.blood_type || selectedPatient.blood_type}
+                      onChange={(v) => setOrderForm({ ...orderForm, blood_type: v })}
+                      ariaLabel="Required Blood Type"
+                      options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Units Needed (Bags)</label>
@@ -790,14 +802,16 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Urgency Level</label>
-                    <select 
-                      value={orderForm.urgency} 
-                      onChange={(e) => setOrderForm({ ...orderForm, urgency: e.target.value })}
-                    >
-                      <option value="routine">Routine (Scheduled Surgery)</option>
-                      <option value="urgent">Urgent (Within 2 Hours)</option>
-                      <option value="stat">STAT (Immediate Emergency / Trauma)</option>
-                    </select>
+                    <SelectDropdown
+                      value={orderForm.urgency}
+                      onChange={(v) => setOrderForm({ ...orderForm, urgency: v })}
+                      ariaLabel="Urgency Level"
+                      options={[
+                        { value: 'routine', label: 'Routine (Scheduled Surgery)' },
+                        { value: 'urgent', label: 'Urgent (Within 2 Hours)' },
+                        { value: 'stat', label: 'STAT (Immediate Emergency / Trauma)' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -858,15 +872,15 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
 
                       return (
                         <tr key={p.id}>
-                          <td style={{ fontWeight: 600 }}>{p.full_name}</td>
-                          <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{p.fayda_id || 'N/A'}</td>
-                          <td>
+                          <td data-label="Patient Name" style={{ fontWeight: 600 }}>{p.full_name}</td>
+                          <td data-label="FAYDA ID" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{p.fayda_id || 'N/A'}</td>
+                          <td data-label="Blood Type">
                             <span style={{ background: 'rgba(13,148,136,0.1)', color: '#0d9488', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                               {p.blood_type}
                             </span>
                           </td>
-                          <td>{p.ward || 'ICU'} / {p.bed_number || 'Bed 12'}</td>
-                          <td>
+                          <td data-label="Ward / Bed">{p.ward || 'ICU'} / {p.bed_number || 'Bed 12'}</td>
+                          <td data-label="Blood Ordered">
                             {totalUnits > 0 && latestOrder ? (
                               <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -890,15 +904,15 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab }) {
                               <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>None ordered</span>
                             )}
                           </td>
-                          <td>
+                          <td data-label="Status">
                             <span className={`badge badge-${p.admission_status === 'admitted' ? 'approved' : 'pending'}`} style={{ fontSize: '0.68rem' }}>
                               {p.admission_status || 'Admitted'}
                             </span>
                           </td>
-                          <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          <td data-label="Admitted Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                             {new Date(p.admitted_at || p.created_at || Date.now()).toLocaleDateString()}
                           </td>
-                          <td style={{ textAlign: 'right' }}>
+                          <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                               {p.admission_status !== 'discharged' && (
                                 <button
