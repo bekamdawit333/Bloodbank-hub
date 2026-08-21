@@ -225,20 +225,6 @@ async function createBloodSample(req, res) {
       });
     }
 
-    // Validate and assign laboratory
-    let targetLabId = (lab_id && lab_id.trim()) ? lab_id.trim() : null;
-    if (targetLabId) {
-      const labExists = await mainDb.user.findUnique({ where: { id: targetLabId } });
-      if (!labExists) targetLabId = null;
-    }
-    if (!targetLabId) {
-      const defaultLab = await mainDb.user.findFirst({
-        where: { role: 'laboratory', status: 'approved' },
-        select: { id: true }
-      });
-      targetLabId = defaultLab ? defaultLab.id : null;
-    }
-
     // Validate station ID
     let targetStationId = req.user?.id;
     if (targetStationId) {
@@ -253,21 +239,11 @@ async function createBloodSample(req, res) {
       data: {
         fayda_id: donor.fayda_id,
         blood_type: blood_type || donor.blood_type || 'O+',
-        status: 'pending_lab',
+        status: 'collected',
         station_id: targetStationId,
-        lab_id: targetLabId,
         health_notes: health_notes || null
       }
     });
-
-    const io = req.app.get('io');
-    if (io && targetLabId) {
-      io.emit('notification', {
-        recipientRole: 'laboratory',
-        recipientId: targetLabId,
-        message: 'A new blood sample is waiting for laboratory screening.'
-      });
-    }
 
     // Send thank you SMS for donation (Safe try-catch)
     try {
@@ -283,7 +259,7 @@ async function createBloodSample(req, res) {
       await logAction(
         req.user.id,
         'BLOOD_SAMPLE_COLLECTED',
-        `Collected blood sample ${sample.id} for donor ${donor.name} (${donor.fayda_id}) and routed to lab ${targetLabId || 'unassigned'}.`
+        `Collected blood sample ${sample.id} for donor ${donor.name} (${donor.fayda_id}). Awaiting laboratory routing.`
       );
     } catch (auditErr) {
       console.warn('[Station] Audit log failed:', auditErr.message);
@@ -296,6 +272,57 @@ async function createBloodSample(req, res) {
   } catch (err) {
     console.error('[Station] createBloodSample error:', err);
     res.status(500).json({ error: err.message || 'Failed to log blood sample' });
+  }
+}
+
+async function routeSampleToLab(req, res) {
+  const { id } = req.params;
+  const { lab_id } = req.body;
+
+  if (!lab_id) {
+    return res.status(400).json({ error: 'A screening laboratory is required.' });
+  }
+
+  try {
+    const lab = await mainDb.user.findFirst({
+      where: { id: lab_id, role: 'laboratory', status: 'approved' },
+      select: { id: true, entity_name: true }
+    });
+    if (!lab) {
+      return res.status(400).json({ error: 'Selected laboratory is not approved.' });
+    }
+
+    const sample = await mainDb.bloodSample.findFirst({
+      where: { id, station_id: req.user.id },
+      select: { id: true, status: true, lab_id: true }
+    });
+    if (!sample) {
+      return res.status(404).json({ error: 'Collected sample not found at this station.' });
+    }
+    if (sample.status !== 'collected' || sample.lab_id) {
+      return res.status(400).json({ error: 'Only unassigned collected samples can be routed.' });
+    }
+
+    const routedSample = await mainDb.bloodSample.update({
+      where: { id },
+      data: { lab_id: lab.id, status: 'pending_lab' }
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('notification', {
+        recipientRole: 'laboratory',
+        recipientId: lab.id,
+        message: 'A collected blood sample is waiting for laboratory screening.'
+      });
+    }
+
+    await logAction(req.user.id, 'BLOOD_SAMPLE_ROUTED_TO_LAB', `Routed collected blood sample ${id} to ${lab.entity_name}.`);
+
+    res.json({ message: 'Sample routed to laboratory successfully.', sample: routedSample });
+  } catch (err) {
+    console.error('[Station] routeSampleToLab error:', err);
+    res.status(500).json({ error: err.message || 'Failed to route sample to laboratory' });
   }
 }
 
@@ -483,20 +510,6 @@ async function registerAndCollect(req, res) {
       });
     }
 
-    // 2. Validate and assign laboratory
-    let targetLabId = (lab_id && lab_id.trim()) ? lab_id.trim() : null;
-    if (targetLabId) {
-      const labExists = await mainDb.user.findUnique({ where: { id: targetLabId } });
-      if (!labExists) targetLabId = null;
-    }
-    if (!targetLabId) {
-      const defaultLab = await mainDb.user.findFirst({
-        where: { role: 'laboratory', status: 'approved' },
-        select: { id: true }
-      });
-      targetLabId = defaultLab ? defaultLab.id : null;
-    }
-
     // Validate station ID
     let targetStationId = req.user?.id;
     if (targetStationId) {
@@ -512,9 +525,8 @@ async function registerAndCollect(req, res) {
       data: {
         fayda_id: donor.fayda_id,
         blood_type: blood_type || donor.blood_type || 'O+',
-        status: 'pending_lab',
+        status: 'collected',
         station_id: targetStationId,
-        lab_id: targetLabId,
         health_notes: health_notes || (screening_data ? JSON.stringify(screening_data) : null)
       }
     });
@@ -533,7 +545,7 @@ async function registerAndCollect(req, res) {
       await logAction(
         req.user.id,
         'DONOR_REGISTERED_AND_COLLECTED',
-        `Registered donor ${donor.name} (${donor.fayda_id}) and created sample ${sample.id}.`
+        `Registered donor ${donor.name} (${donor.fayda_id}) and created collected sample ${sample.id}. Awaiting laboratory routing.`
       );
     } catch (auditErr) {
       console.warn('[Station] Audit log failed:', auditErr.message);
@@ -555,6 +567,7 @@ module.exports = {
   registerDonorEvent,
   registerAndCollect,
   createBloodSample,
+  routeSampleToLab,
   getStationSamples,
   getApprovedLabs,
   getDonorsList,

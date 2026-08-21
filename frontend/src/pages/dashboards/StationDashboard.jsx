@@ -10,6 +10,14 @@ import BottomToast from '../../components/common/BottomToast';
 const DB_NAME = 'BloodBankStationOffline';
 const DB_VERSION = 1;
 const STORE_NAME = 'offline_registrations';
+const QUESTIONNAIRE = [
+  { key: 'tattoo', label: 'Have you had a tattoo or piercing within the last 6 months?' },
+  { key: 'medication', label: 'Are you currently taking antibiotics, aspirin, or other medication that affects donation?' },
+  { key: 'surgery', label: 'Have you had major surgery within the last 6 months?' },
+  { key: 'malaria', label: 'Have you had malaria or a fever within the last 3 months?' },
+  { key: 'unwell', label: 'Are you feeling sick, feverish, or unwell today?' },
+  { key: 'hivHistory', label: 'Have you had a recent high-risk disease exposure or diagnosis?' },
+];
 
 function openOfflineDb() {
   return new Promise((resolve, reject) => {
@@ -128,22 +136,35 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
 
   // Screening questionnaire state
   const [questionnaire, setQuestionnaire] = useState({
-    tattoo: 'No',
-    medication: 'No',
-    surgery: 'No',
-    malaria: 'No',
-    unwell: 'No',
-    hivHistory: 'No'
+    tattoo: '',
+    medication: '',
+    surgery: '',
+    malaria: '',
+    unwell: '',
+    hivHistory: ''
   });
+  const [questionnaireStep, setQuestionnaireStep] = useState(0);
+  const [questionnaireFailure, setQuestionnaireFailure] = useState(null);
 
-  const handleQuestionnaireChange = (key, value) => {
-    setQuestionnaire(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  const resetQuestionnaire = () => {
+    setQuestionnaire({ tattoo: '', medication: '', surgery: '', malaria: '', unwell: '', hivHistory: '' });
+    setQuestionnaireStep(0);
+    setQuestionnaireFailure(null);
   };
 
-  const questionnaireFailed = Object.values(questionnaire).includes('Yes');
+  const handleQuestionnaireChange = (key, value) => {
+    setQuestionnaire(prev => ({ ...prev, [key]: value }));
+    if (value === 'Yes') {
+      const question = QUESTIONNAIRE.find(item => item.key === key);
+      setQuestionnaireFailure(`Donation cannot continue: ${question.label}`);
+      return;
+    }
+    setQuestionnaireFailure(null);
+    setQuestionnaireStep(prev => Math.min(prev + 1, QUESTIONNAIRE.length));
+  };
+
+  const questionnaireFailed = Boolean(questionnaireFailure);
+  const questionnaireComplete = questionnaireStep >= QUESTIONNAIRE.length && !questionnaireFailed;
 
   const fetchLabsAndSamples = async () => {
     setLoading(true);
@@ -183,14 +204,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
 
     try {
       const data = await api.station.lookupDonor(queryId);
-      setQuestionnaire({
-        tattoo: 'No',
-        medication: 'No',
-        surgery: 'No',
-        malaria: 'No',
-        unwell: 'No',
-        hivHistory: 'No'
-      });
+      resetQuestionnaire();
 
       if (data.found) {
         setDonorResult(data.donor);
@@ -223,8 +237,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       return;
     }
 
-    if (questionnaireFailed) {
-      setError('Donor failed medical screening questionnaire. Blood collection aborted.');
+    if (!questionnaireComplete) {
+      setError(questionnaireFailure || 'Complete the medical screening questionnaire before collection.');
       return;
     }
 
@@ -238,13 +252,12 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       phone: donorResult?.phone,
       name: donorResult?.name,
       blood_type: bloodType || donorResult?.blood_type || 'O+',
-      lab_id: selectedLabId || (labs[0] ? labs[0].id : undefined),
       screening_data: questionnaire
     };
 
     try {
       const data = await api.station.collectSample(payload);
-      setSuccess(`Sample collected and routed to ${data.sample?.lab_name || 'selected laboratory'} (ID: ${data.sample?.id || 'OK'})`);
+      setSuccess(`Sample collected and waiting for laboratory routing (ID: ${data.sample?.id || 'OK'}).`);
       setSearched(false);
       setQueryId('');
       fetchLabsAndSamples();
@@ -270,7 +283,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
   const handleRegisterAndCollect = async (e) => {
     e.preventDefault();
 
-    if (questionnaireFailed) {
+    if (!questionnaireComplete) {
       setError('Donor failed medical screening questionnaire. Registration & donation aborted.');
       return;
     }
@@ -287,13 +300,12 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       gender: gender || 'Male',
       address: address ? address.trim() : 'Addis Ababa, Ethiopia',
       blood_type: bloodType || 'O+',
-      lab_id: selectedLabId || (labs[0] ? labs[0].id : undefined),
       screening_data: questionnaire
     };
 
     try {
       const data = await api.station.registerAndCollect(payload);
-      setSuccess(`New donor (${data.donor?.name || name}) registered and blood sample routed to laboratory!`);
+      setSuccess(`New donor (${data.donor?.name || name}) registered and sample collected. It is waiting for laboratory routing.`);
       setSearched(false);
       setQueryId('');
       fetchLabsAndSamples();
@@ -311,6 +323,24 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       } else {
         setError(err.message || 'Registration and collection failed.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRouteSample = async (sampleId) => {
+    if (!selectedLabId) {
+      setError('Select an approved laboratory before routing the sample.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await api.station.routeSampleToLab(sampleId, selectedLabId);
+      setSuccess('Sample routed to the laboratory for screening.');
+      await fetchLabsAndSamples();
+    } catch (err) {
+      setError(err.message || 'Failed to route sample to laboratory.');
     } finally {
       setLoading(false);
     }
@@ -353,57 +383,25 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
         Pre-Donation Medical Screening Questionnaire
       </h4>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
-        {[
-          { key: 'tattoo', label: 'Tattoo/Piercing within 6 mos?' },
-          { key: 'medication', label: 'Currently on antibiotics/aspirin?' },
-          { key: 'surgery', label: 'Major surgery in last 6 mos?' },
-          { key: 'malaria', label: 'Malaria fever in last 3 mos?' },
-          { key: 'unwell', label: 'Feeling flu or unwell today?' },
-          { key: 'hivHistory', label: 'High risk disease exposure?' }
-        ].map(q => (
-          <div key={q.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>{q.label}</span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button 
-                type="button" 
-                onClick={() => handleQuestionnaireChange(q.key, 'No')}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: questionnaire[q.key] === 'No' ? '#06d6a0' : 'rgba(255,255,255,0.06)',
-                  color: questionnaire[q.key] === 'No' ? '#fff' : 'var(--text-muted)'
-                }}
-              >
-                No
-              </button>
-              <button 
-                type="button" 
-                onClick={() => handleQuestionnaireChange(q.key, 'Yes')}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: questionnaire[q.key] === 'Yes' ? '#ef233c' : 'rgba(255,255,255,0.06)',
-                  color: questionnaire[q.key] === 'Yes' ? '#fff' : 'var(--text-muted)'
-                }}
-              >
-                Yes
-              </button>
-            </div>
+      {questionnaireFailure ? (
+        <div style={{ color: '#ef233c', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <span>{questionnaireFailure} The donor is temporarily ineligible for collection.</span>
+        </div>
+      ) : questionnaireComplete ? (
+        <div style={{ color: '#059669', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircle2 size={16} /> All screening questions passed. Continue with donor intake and collection.
+        </div>
+      ) : (
+        <div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Question {questionnaireStep + 1} of {QUESTIONNAIRE.length}</div>
+          <div style={{ background: 'var(--bg-surface)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.82rem', lineHeight: 1.45 }}>
+            {QUESTIONNAIRE[questionnaireStep].label}
           </div>
-        ))}
-      </div>
-      {questionnaireFailed && (
-        <div style={{ marginTop: '10px', color: '#ef233c', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <AlertTriangle size={14} /> Donor answered "Yes" to risk markers. Deferral recommended.
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            <button type="button" onClick={() => handleQuestionnaireChange(QUESTIONNAIRE[questionnaireStep].key, 'No')} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#06d6a0', borderColor: '#06d6a0' }}>No, continue</button>
+            <button type="button" onClick={() => handleQuestionnaireChange(QUESTIONNAIRE[questionnaireStep].key, 'Yes')} className="btn" style={{ flex: 1, justifyContent: 'center', color: '#ef233c', border: '1px solid rgba(239,35,60,0.35)' }}>Yes, stop</button>
+          </div>
         </div>
       )}
     </div>
@@ -850,22 +848,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                     <>
                       {renderQuestionnaireForm()}
 
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Assign Screening Laboratory</label>
-                        <select 
-                          value={selectedLabId} 
-                          onChange={(e) => setSelectedLabId(e.target.value)}
-                          required
-                          style={{ width: '100%' }}
-                        >
-                          {labs.map(l => (
-                            <option key={l.id} value={l.id}>{l.entity_name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
-                        <PlusCircle size={16} /> Fast-Track Sample & Route to Lab
+                      <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!questionnaireComplete || loading}>
+                        <PlusCircle size={16} /> Collect Blood Sample
                       </button>
                     </>
                   ) : (
@@ -943,25 +927,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
 
                   {renderQuestionnaireForm()}
 
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Assign Screening Laboratory</label>
-                    <select 
-                      value={selectedLabId || (labs[0] ? labs[0].id : '')} 
-                      onChange={(e) => setSelectedLabId(e.target.value)}
-                      required
-                      style={{ width: '100%' }}
-                    >
-                      {labs.length === 0 ? (
-                        <option value="">Central Blood Testing Laboratory (Auto)</option>
-                      ) : (
-                        labs.map(l => (
-                          <option key={l.id} value={l.id}>{l.entity_name}</option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={questionnaireFailed || loading}>
+                  <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!questionnaireComplete || loading}>
                     <UserCheck size={16} /> Register Profile & Collect Blood
                   </button>
                 </form>
@@ -1166,6 +1132,14 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
             <p>Track all blood bags collected at this workstation and their routing status.</p>
           </div>
 
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Route collected sample to:</label>
+            <select value={selectedLabId} onChange={(e) => setSelectedLabId(e.target.value)} style={{ minWidth: '220px' }}>
+              <option value="">Select approved laboratory</option>
+              {labs.map(l => <option key={l.id} value={l.id}>{l.entity_name}</option>)}
+            </select>
+          </div>
+
           {samples.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>No blood bags collected today.</p>
           ) : (
@@ -1178,6 +1152,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                     <th>Routed Lab</th>
                     <th>Bag Status</th>
                     <th>Collected Date</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1197,6 +1172,15 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                       </td>
                       <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {new Date(s.collected_at).toLocaleDateString()}
+                      </td>
+                      <td>
+                        {s.status === 'collected' ? (
+                          <button type="button" className="btn btn-primary" onClick={() => handleRouteSample(s.id)} disabled={loading || !selectedLabId} style={{ padding: '5px 9px', fontSize: '0.7rem' }}>
+                            <ArrowRight size={13} /> Route
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Already routed</span>
+                        )}
                       </td>
                     </tr>
                   ))}

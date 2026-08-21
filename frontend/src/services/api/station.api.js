@@ -41,6 +41,14 @@ export const stationApi = {
     });
     return handleResponse(response);
   },
+  routeSampleToLab: async (sampleId, labId) => {
+    const response = await fetch(`${BASE_URL}/station/samples/${sampleId}/route`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ lab_id: labId }),
+    });
+    return handleResponse(response);
+  },
   registerAndCollect: async (payload) => {
     const response = await fetch(`${BASE_URL}/station/register-and-collect`, {
       method: 'POST',
