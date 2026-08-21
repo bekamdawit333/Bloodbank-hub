@@ -992,6 +992,11 @@ export default function App() {
                       icon: <History size={16} />,
                     },
                     {
+                      id: "appointments",
+                      label: "My Appointments",
+                      icon: <Calendar size={16} />,
+                    },
+                    {
                       id: "messages",
                       label: "Messages",
                       icon: <MessageSquare size={16} />,

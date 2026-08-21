@@ -71,6 +71,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
   const [queryId, setQueryId] = useState('');
   const [searched, setSearched] = useState(false);
   const [donorResult, setDonorResult] = useState(null);
+  const [existingSample, setExistingSample] = useState(null);
+  const [donorAppointment, setDonorAppointment] = useState(null);
   const [eligibility, setEligibility] = useState(null);
   const [labs, setLabs] = useState([]);
   const [samples, setSamples] = useState([]);
@@ -133,6 +135,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
   const [gender, setGender] = useState('Male');
   const [address, setAddress] = useState('Addis Ababa, Ethiopia');
   const [bloodType, setBloodType] = useState('O+');
+  const [vitals, setVitals] = useState({ hemoglobin: '', heart_rate: '', blood_pressure: '', temperature: '', weight: '' });
 
   // Screening questionnaire state
   const [questionnaire, setQuestionnaire] = useState({
@@ -150,6 +153,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
     setQuestionnaire({ tattoo: '', medication: '', surgery: '', malaria: '', unwell: '', hivHistory: '' });
     setQuestionnaireStep(0);
     setQuestionnaireFailure(null);
+    setVitals({ hemoglobin: '', heart_rate: '', blood_pressure: '', temperature: '', weight: '' });
   };
 
   const handleQuestionnaireChange = (key, value) => {
@@ -165,6 +169,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
 
   const questionnaireFailed = Boolean(questionnaireFailure);
   const questionnaireComplete = questionnaireStep >= QUESTIONNAIRE.length && !questionnaireFailed;
+  const vitalsComplete = Object.values(vitals).every(Boolean);
+  const screeningComplete = questionnaireComplete && vitalsComplete;
 
   const fetchLabsAndSamples = async () => {
     setLoading(true);
@@ -208,10 +214,14 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
 
       if (data.found) {
         setDonorResult(data.donor);
+        setExistingSample(data.existing_sample || null);
+        setDonorAppointment(data.appointment || null);
         setEligibility(data.eligibility);
         setBloodType(data.donor.blood_type);
       } else {
         setDonorResult(null);
+        setExistingSample(null);
+        setDonorAppointment(null);
         setEligibility(null);
         setName('');
         setPhone(queryId.startsWith('+') ? queryId : '');
@@ -237,8 +247,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       return;
     }
 
-    if (!questionnaireComplete) {
-      setError(questionnaireFailure || 'Complete the medical screening questionnaire before collection.');
+    if (!screeningComplete) {
+      setError(questionnaireFailure || 'Complete all screening questions and vital signs before collection.');
       return;
     }
 
@@ -252,7 +262,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       phone: donorResult?.phone,
       name: donorResult?.name,
       blood_type: bloodType || donorResult?.blood_type || 'O+',
-      screening_data: questionnaire
+      lab_id: selectedLabId,
+      appointment_id: donorAppointment?.id,
+      screening_data: { questionnaire, vitals }
     };
 
     try {
@@ -283,8 +295,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
   const handleRegisterAndCollect = async (e) => {
     e.preventDefault();
 
-    if (!questionnaireComplete) {
-      setError('Donor failed medical screening questionnaire. Registration & donation aborted.');
+    if (!screeningComplete) {
+      setError('Complete all screening questions and vital signs before registration and donation.');
       return;
     }
 
@@ -300,7 +312,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
       gender: gender || 'Male',
       address: address ? address.trim() : 'Addis Ababa, Ethiopia',
       blood_type: bloodType || 'O+',
-      screening_data: questionnaire
+      screening_data: { questionnaire, vitals }
     };
 
     try {
@@ -404,6 +416,26 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  const renderVitalsForm = () => (
+    <div style={{ background: 'var(--bg-main)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '10px' }}>
+      <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Pre-Donation Vital Signs</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+        {[
+          ['hemoglobin', 'Hemoglobin (g/dL)', '12.5'],
+          ['heart_rate', 'Heart rate (bpm)', '72'],
+          ['blood_pressure', 'Blood pressure', '120/80'],
+          ['temperature', 'Temperature (C)', '36.5'],
+          ['weight', 'Weight (kg)', '60']
+        ].map(([key, label, placeholder]) => (
+          <label key={key} style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+            {label}
+            <input type="text" inputMode="decimal" placeholder={placeholder} value={vitals[key]} onChange={(e) => setVitals(prev => ({ ...prev, [key]: e.target.value }))} required style={{ width: '100%', marginTop: '4px', boxSizing: 'border-box' }} />
+          </label>
+        ))}
+      </div>
     </div>
   );
 
@@ -844,34 +876,35 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                     <div><strong>Points:</strong> {donorResult.points} pts</div>
                   </div>
 
-                  {eligibility?.is_eligible ? (
+                  <div style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.25)', borderRadius: '8px', padding: '14px' }}>
+                    <div style={{ fontWeight: 700, color: '#2563eb', fontSize: '0.86rem', marginBottom: '5px' }}>Existing donor profile loaded</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      Demographics came from the donor record. A new donor account will not be created. Complete this visit's health screening, then the new sample will be sent to the laboratory.
+                    </div>
+                    {donorAppointment ? (
+                      <div style={{ marginTop: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#059669' }}>
+                        Appointment: {new Date(donorAppointment.date_time).toLocaleString()}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#ef233c' }}>No upcoming appointment at this station. The donor must schedule one before collection.</div>
+                    )}
+                  </div>
+
+                  {donorAppointment && eligibility?.is_eligible ? (
                     <>
                       {renderQuestionnaireForm()}
-
-                      <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!questionnaireComplete || loading}>
-                        <PlusCircle size={16} /> Collect Blood Sample
+                      {renderVitalsForm()}
+                      <select value={selectedLabId} onChange={(e) => setSelectedLabId(e.target.value)} required>
+                        <option value="">Select approved laboratory</option>
+                        {labs.map(lab => <option key={lab.id} value={lab.id}>{lab.entity_name}</option>)}
+                      </select>
+                      <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!screeningComplete || loading || !selectedLabId}>
+                        <Droplet size={16} /> Collect New Donation & Send to Lab
                       </button>
                     </>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button 
-                        type="button" 
-                        className="btn" 
-                        disabled
-                        style={{ 
-                          justifyContent: 'center', 
-                          background: 'rgba(239,35,60,0.15)', 
-                          color: '#ef233c', 
-                          cursor: 'not-allowed', 
-                          border: '1px solid rgba(239,35,60,0.3)',
-                          fontWeight: 600
-                        }}
-                      >
-                        ⚠️ Sample Collection Blocked (Wait Period: {eligibility?.days_remaining || 0} days remaining)
-                      </button>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                        Safety standard requires a minimum of 90 days between whole blood donations to ensure donor recovery and hemoglobin regeneration.
-                      </p>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                      Collection is blocked until the appointment and 90-day eligibility requirements are satisfied.
                     </div>
                   )}
                 </form>
@@ -926,8 +959,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                   </div>
 
                   {renderQuestionnaireForm()}
+                  {renderVitalsForm()}
 
-                  <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!questionnaireComplete || loading}>
+                  <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!screeningComplete || loading}>
                     <UserCheck size={16} /> Register Profile & Collect Blood
                   </button>
                 </form>

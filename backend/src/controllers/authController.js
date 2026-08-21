@@ -249,6 +249,21 @@ async function registerComplete(req, res) {
       return res.status(400).json({ error: "Email already registered" });
     }
 
+    if (role === "donor" && (faydaId || phone)) {
+      const existingDonor = await mainDb.donor.findFirst({
+        where: {
+          OR: [
+            ...(faydaId ? [{ fayda_id: faydaId }] : []),
+            ...(phone ? [{ phone }] : [])
+          ]
+        },
+        select: { user_id: true }
+      });
+      if (existingDonor?.user_id) {
+        return res.status(409).json({ error: "This donor ID is already linked to a user account. Use that account instead of creating another user." });
+      }
+    }
+
     // Set entity name depending on role
     const finalEntityName =
       role === "donor" ? name : entityName || `${role.toUpperCase()} Entity`;

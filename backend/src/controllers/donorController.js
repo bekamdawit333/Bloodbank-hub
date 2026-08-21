@@ -170,6 +170,13 @@ async function bookAppointment(req, res) {
       return res.status(400).json({ error: 'This time slot is already booked at this station. Please choose another time.' });
     }
 
+    const donorAppointment = await mainDb.appointment.findFirst({
+      where: { donor_id: donor.fayda_id, status: 'scheduled' }
+    });
+    if (donorAppointment) {
+      return res.status(400).json({ error: 'You already have a scheduled donation appointment. Complete or cancel it before booking another.' });
+    }
+
     const appointment = await mainDb.appointment.create({
       data: {
         donor_id: donor.fayda_id,

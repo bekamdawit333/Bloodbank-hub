@@ -573,6 +573,59 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
         </div>
       )}
 
+      {/* APPOINTMENTS TAB */}
+      {activeTab === 'appointments' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+          <div className="dashboard-card animate-fade-in">
+            <div className="dashboard-header" style={{ marginBottom: '16px' }}>
+              <h2>Schedule Donation</h2>
+              <p>Choose one approved station and a future donation time.</p>
+            </div>
+            {bookingError && <div className="auth-error" style={{ marginBottom: '12px' }}>{bookingError}</div>}
+            {bookingSuccess && <div className="auth-success" style={{ marginBottom: '12px' }}>{bookingSuccess}</div>}
+            <form onSubmit={handleBookAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                Donation Station
+                <select value={bookingStationId} onChange={(e) => setBookingStationId(e.target.value)} required style={{ width: '100%', marginTop: '5px' }}>
+                  <option value="">Select station</option>
+                  {stations.map(station => <option key={station.id} value={station.id}>{station.entity_name}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                Donation Date and Time
+                <input type="datetime-local" value={bookingDateTime} min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)} onChange={(e) => setBookingDateTime(e.target.value)} required style={{ width: '100%', marginTop: '5px', boxSizing: 'border-box' }} />
+              </label>
+              <button type="submit" className="btn btn-primary" disabled={bookingLoading} style={{ justifyContent: 'center' }}>
+                <Calendar size={16} /> {bookingLoading ? 'Scheduling...' : 'Schedule Donation'}
+              </button>
+            </form>
+          </div>
+
+          <div className="dashboard-card animate-fade-in">
+            <div className="dashboard-header" style={{ marginBottom: '16px' }}>
+              <h2>My Donation Appointments</h2>
+              <p>Present your FAYDA ID at the selected station. Your demographic profile will load there.</p>
+            </div>
+            {appointments.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No scheduled appointments.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {appointments.map(appointment => (
+                  <div key={appointment.id} style={{ padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-main)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{appointment.station?.entity_name || 'Donation Station'}</strong>
+                      <span className={`badge badge-${appointment.status === 'scheduled' ? 'approved' : 'pending'}`}>{appointment.status}</span>
+                    </div>
+                    <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(appointment.date_time).toLocaleString()}</div>
+                    {appointment.status === 'scheduled' && <button type="button" onClick={() => handleCancelAppointment(appointment.id)} className="btn" style={{ marginTop: '10px', padding: '5px 9px', fontSize: '0.72rem' }}>Cancel Appointment</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* MESSAGES TAB */}
       {activeTab === 'messages' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '20px', alignItems: 'start' }}>

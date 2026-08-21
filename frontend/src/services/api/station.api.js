@@ -32,6 +32,8 @@ export const stationApi = {
       donor_id: sampleData.donor_id || sampleData.donorId,
       blood_type: sampleData.blood_type || sampleData.bloodType,
       lab_id: sampleData.lab_id || sampleData.labId,
+      appointment_id: sampleData.appointment_id || sampleData.appointmentId,
+      screening_data: sampleData.screening_data,
       health_notes: sampleData.health_notes || (sampleData.screening_data ? JSON.stringify(sampleData.screening_data) : null),
     };
     const response = await fetch(`${BASE_URL}/station/samples`, {
