@@ -9,10 +9,13 @@
   border-radius: 16px;
 
   /* Keeps the existing glass-card visual style */
-  background: var(--surface, rgba(255, 255, 255, 0.04));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--border-glass);
+  box-shadow: var(--shadow-md);
 
-  animation: fade-in 0.3s ease;
+  animation: fadeIn 0.3s ease;
 }
 
 .register-container-small {
@@ -182,7 +185,7 @@
    --------------------------------------------------------- */
 
 .donor-profile-form {
-  animation: fade-in 0.3s ease;
+  animation: fadeIn 0.3s ease;
 }
 
 .donor-demographics {
