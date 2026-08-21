@@ -340,10 +340,11 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'space-between',
-            gap: '14px'
+            gap: '14px',
+            flexWrap: 'wrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ background: '#ef233c', color: '#fff', borderRadius: '50%', padding: '6px', display: 'flex' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 220px', minWidth: 0 }}>
+              <div style={{ background: '#ef233c', color: '#fff', borderRadius: '50%', padding: '6px', display: 'flex', flexShrink: 0 }}>
                 <Heart size={16} fill="#fff" />
               </div>
               <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -353,7 +354,7 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
             <button 
               onClick={() => setActiveTab('campaigns')} 
               className="btn btn-primary" 
-              style={{ padding: '6px 14px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+              style={{ padding: '6px 14px', fontSize: '0.78rem' }}
             >
               View Campaigns
             </button>
@@ -387,19 +388,19 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
                 <tbody>
                   {history.map(h => (
                     <tr key={h.id}>
-                      <td style={{ fontWeight: 600 }}>{new Date(h.collected_at).toLocaleDateString()}</td>
-                      <td>
+                      <td data-label="Donation Date" style={{ fontWeight: 600 }}>{new Date(h.collected_at).toLocaleDateString()}</td>
+                      <td data-label="Blood Type">
                         <span style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '3px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.78rem' }}>
                           {h.blood_type}
                         </span>
                       </td>
-                      <td>{h.station_name}</td>
-                      <td>
+                      <td data-label="Workstation Station">{h.station_name}</td>
+                      <td data-label="Screening Status">
                         <span className={`badge badge-${h.status}`}>
                           {h.status}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.82rem', color: h.status === 'discarded' ? '#ef233c' : 'var(--text-secondary)' }}>
+                      <td data-label="Lab Clinical Findings" style={{ fontSize: '0.82rem', color: h.status === 'discarded' ? '#ef233c' : 'var(--text-secondary)' }}>
                         {h.health_notes || 'Clinical tests passed'}
                       </td>
                     </tr>

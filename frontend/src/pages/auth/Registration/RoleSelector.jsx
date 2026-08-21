@@ -1,8 +1,9 @@
 import React from 'react';
+import SelectDropdown from '../../../components/common/SelectDropdown';
 
 export default function RoleSelector({ role, setRole, setError, setSuccessMsg }) {
-  const handleRoleChange = (e) => {
-    setRole(e.target.value);
+  const handleRoleChange = (value) => {
+    setRole(value);
     setError(null);
     setSuccessMsg(null);
   };
@@ -13,31 +14,18 @@ export default function RoleSelector({ role, setRole, setError, setSuccessMsg })
         Registering As
       </label>
 
-      <select
+      <SelectDropdown
         value={role}
         onChange={handleRoleChange}
-        className="register-input"
-      >
-        <option value="donor">
-          Donor (Requires Email Code)
-        </option>
-
-        <option value="station">
-          Donation Station (Staff)
-        </option>
-
-        <option value="laboratory">
-          Medical Screening Lab (Staff)
-        </option>
-
-        <option value="warehouse">
-          Blood Central Inventory / Warehouse (Staff)
-        </option>
-
-        <option value="hospital">
-          Hospital Workstation (Staff)
-        </option>
-      </select>
+        ariaLabel="Registering As"
+        options={[
+          { value: 'donor', label: 'Donor (Requires Email Code)' },
+          { value: 'station', label: 'Donation Station (Staff)' },
+          { value: 'laboratory', label: 'Medical Screening Lab (Staff)' },
+          { value: 'warehouse', label: 'Blood Central Inventory / Warehouse (Staff)' },
+          { value: 'hospital', label: 'Hospital Workstation (Staff)' }
+        ]}
+      />
     </div>
   );
 }

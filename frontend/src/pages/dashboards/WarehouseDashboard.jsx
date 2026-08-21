@@ -5,10 +5,11 @@ import {
   Check, Droplet, Clock, MessageSquare, AlertTriangle, Layers
 } from 'lucide-react';
 import { api } from '../../services/api';
+import SelectDropdown from '../../components/common/SelectDropdown';
 import { io } from 'socket.io-client';
 import BottomToast from '../../components/common/BottomToast';
 
-export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
+export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile }) {
   const [stock, setStock] = useState([]);
   const [requests, setRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -522,14 +523,14 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                   <tbody>
                     {expiringBags.map((bag, i) => (
                       <tr key={bag.id || i}>
-                        <td style={{ fontWeight: 600 }}>{bag.id}</td>
-                        <td>
+                        <td data-label="Bag Code" style={{ fontWeight: 600 }}>{bag.id}</td>
+                        <td data-label="Blood Type">
                           <span style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                             {bag.blood_type}
                           </span>
                         </td>
-                        <td style={{ color: '#f59e0b', fontWeight: 600 }}>{bag.days_left || 3} days</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{bag.location || 'Shelf B-4'}</td>
+                        <td data-label="Days to Expiry" style={{ color: '#f59e0b', fontWeight: 600 }}>{bag.days_left || 3} days</td>
+                        <td data-label="Storage Location" style={{ color: 'var(--text-secondary)' }}>{bag.location || 'Shelf B-4'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -567,17 +568,15 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
               </div>
 
               <form onSubmit={handleManualIntake} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Group</label>
-                    <select
+                    <SelectDropdown
                       value={receiveForm.blood_type}
-                      onChange={(e) => setReceiveForm({ ...receiveForm, blood_type: e.target.value })}
-                    >
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setReceiveForm({ ...receiveForm, blood_type: v })}
+                      ariaLabel="Blood Group"
+                      options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Units Received (Bags)</label>
@@ -644,26 +643,26 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                   ) : (
                     incomingStock.map(item => (
                       <tr key={item.id}>
-                        <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                        <td data-label="Sample Code" style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.8rem' }}>
                           {item.id.slice(0, 8)}...
                         </td>
-                        <td>
+                        <td data-label="Blood Group">
                           <span style={{ background: 'rgba(239,35,60,0.1)', color: '#ef233c', padding: '2px 8px', borderRadius: '4px', fontWeight: 800, fontSize: '0.82rem' }}>
                             {item.blood_type}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{item.donor_name}</td>
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{item.fayda_id || 'ET-FAY-VERIFIED'}</td>
-                        <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{item.lab_name}</td>
-                        <td>
+                        <td data-label="Donor Name" style={{ fontWeight: 600 }}>{item.donor_name}</td>
+                        <td data-label="FAYDA ID" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{item.fayda_id || 'ET-FAY-VERIFIED'}</td>
+                        <td data-label="Screening Lab" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{item.lab_name}</td>
+                        <td data-label="Lab Status">
                           <span className="badge badge-approved" style={{ fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <CheckCircle2 size={11} /> Validated (Safe)
                           </span>
                         </td>
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        <td data-label="Tested Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           {new Date(item.collected_at || Date.now()).toLocaleDateString()}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                           <button
                             onClick={() => handleReceiveStock(item)}
                             className="btn btn-primary"
@@ -766,22 +765,22 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {requests.map(req => (
                     <tr key={req.id}>
-                      <td style={{ fontWeight: 600 }}>{req.hospital_name}</td>
-                      <td>
+                      <td data-label="Hospital Name" style={{ fontWeight: 600 }}>{req.hospital_name}</td>
+                      <td data-label="Blood Type">
                         <span style={{ background: 'rgba(5,150,105,0.1)', color: '#059669', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                           {req.blood_type}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{req.units_needed} units</td>
-                      <td>
+                      <td data-label="Units Ordered" style={{ fontWeight: 600 }}>{req.units_needed} units</td>
+                      <td data-label="Status">
                         <span className={`badge badge-${req.status}`}>
                           {req.status}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      <td data-label="Date Logged" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {new Date(req.created_at).toLocaleString()}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                         {req.status === 'pending' && (
                           <button
                             onClick={() => handleFulfillRequest(req.id)}
@@ -804,8 +803,8 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
 
       {/* CAMPAIGNS & ANNOUNCEMENTS TAB */}
       {(tab === 'campaigns' || tab === 'reports' || tab === 'settings') && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px', alignItems: 'start' }}>
-
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.2fr', gap: '20px', alignItems: 'start' }}>
+          
           {/* Create Announcement Form */}
           <div className="dashboard-card animate-fade-in">
             <div className="dashboard-header" style={{ marginBottom: '14px' }}>
@@ -824,7 +823,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                 <input type="text" placeholder="e.g. Meskel Square, Addis Ababa" value={annLocation} onChange={(e) => setAnnLocation(e.target.value)} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Start Date</label>
                   <input type="date" value={annStart} onChange={(e) => setAnnStart(e.target.value)} />

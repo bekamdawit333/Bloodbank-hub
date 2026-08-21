@@ -13,7 +13,7 @@
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
 
-  animation: fade-in 0.3s ease;
+  animation: fadeIn 0.3s ease;
 }
 
 .register-container-small {
@@ -197,7 +197,7 @@
    --------------------------------------------------------- */
 
 .donor-profile-form {
-  animation: fade-in 0.3s ease;
+  animation: fadeIn 0.3s ease;
 }
 
 .donor-demographics {

@@ -146,6 +146,10 @@
   padding: 0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-main);
@@ -198,6 +202,8 @@ body {
 /* Input Styles */
 input, select, textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 12px 16px;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -207,6 +213,24 @@ input, select, textarea {
   font-size: 0.95rem;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
+}
+
+select {
+  padding-right: 36px;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Auth cards live inside centered flex wrappers; as flex items they need
+   explicit permission to shrink below their content's intrinsic width,
+   otherwise a wide select/input expands the whole card past the viewport */
+.register-container,
+.login-card,
+.auth-modal {
+  min-width: 0;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -322,14 +346,35 @@ label {
   border: 1px solid rgba(78, 168, 222, 0.3);
 }
 
+.badge-blood-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+  background: rgba(239, 35, 60, 0.1);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 35, 60, 0.25);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 .animate-fade-in {
   animation: fadeIn var(--transition-normal) forwards;
+}
+
+/* A card containing an open dropdown must paint above sibling cards
+   (fade-in fill otherwise leaves a stacking context on every card) */
+.dashboard-card:has(.select-dd-open) {
+  position: relative;
+  z-index: 60;
 }
 
 
@@ -398,61 +443,208 @@ tr:hover td {
   }
 }
 
-@media (max-width: 768px) {
+/* ==========================================================================
+   MOBILE-FIRST RESPONSIVE RULES (phone: < 768px)
+   ========================================================================== */
+@media (max-width: 767px) {
   .grid-2, .grid-3, .grid-4 {
     grid-template-columns: 1fr;
   }
-  
-  /* Force all inline grid columns to stack vertically on small screens */
-  div[style*="grid"] {
+
+  /* Collapse multi-column inline-grid layouts to a single column */
+  div[style*="grid-template-columns"] {
     grid-template-columns: 1fr !important;
   }
-  
-  /* App layout resets for small mobile screens */
-  div[style*="display: flex"][style*="height: 100vh"] {
-    flex-direction: column !important;
-    height: auto !important;
-    min-height: 100vh !important;
-    overflow-y: auto !important;
+
+  /* Keep auto-fit / auto-fill wrapping grids (they already reflow on their own) */
+  div[style*="auto-fit"],
+  div[style*="auto-fill"] {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
   }
-  
-  aside {
-    width: 100% !important;
-    height: auto !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--border-color) !important;
-    padding: 20px !important;
-  }
-  
-  main {
-    padding: 20px !important;
-    overflow-y: visible !important;
-  }
-  
-  header {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 15px !important;
-  }
-  
-  header div {
-    width: 100% !important;
-    justify-content: space-between !important;
-  }
-  
-  .glass-card form div[style*="display: grid"],
-  div[style*="display: grid"][style*="gridTemplateColumns"] {
+
+  /* Forms stack and stay full-width on phones */
+  .glass-card form div[style*="display: grid"] {
     grid-template-columns: 1fr !important;
     gap: 15px !important;
   }
-  
-  .btn {
-    flex-direction: row !important;
-    justify-content: center !important;
-  }
-  
-  select, input, button {
+
+  /* Prevent iOS auto-zoom on form fields while keeping text readable */
+  select, input, textarea {
     font-size: 16px !important;
+  }
+
+  /* Inputs must never overflow their container: allow them to shrink
+     inside flex/grid rows and always span the available space */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Form rows built with inline flex wrap instead of pushing
+     inputs/buttons off-screen */
+  form div[style*="display: flex"],
+  .glass-card div[style*="display: flex"][style*="gap"] {
+    flex-wrap: wrap;
+  }
+  .fayda-input-row {
+    flex-wrap: wrap;
+  }
+
+  /* Minimum 44x44px touch targets for every interactive element */
+  button, .btn, a.btn, .view-all-btn {
+    min-height: 44px;
+  }
+  .btn {
+    min-width: 44px;
+  }
+
+  /* Modals / dialogs must fit small viewports */
+  .auth-modal-overlay {
+    padding: 12px;
+  }
+  .auth-modal {
+    max-width: 100%;
+    padding: 24px 20px;
+  }
+
+  /* Header dropdowns (notifications, profile) become full-width sheets
+     anchored under the header so they never overflow either screen edge */
+  .header-dropdown {
+    position: fixed !important;
+    top: 60px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+  }
+
+  /* Section headers with side-by-side actions wrap instead of overflowing */
+  .dashboard-header {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  /* ======================================================================
+     RESPONSIVE TABLES -> STACKED CARDS
+     Each <td> uses data-label="..." to render label-value pairs.
+     Action cells (.cell-actions) become full-width stacked buttons.
+     ====================================================================== */
+  .table-container {
+    overflow: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .table-container table {
+    display: block;
+  }
+
+  .table-container thead {
+    display: none;
+  }
+
+  .table-container tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .table-container tbody tr {
+    display: block;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 12px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table-container tbody tr:hover td {
+    background: transparent;
+  }
+
+  .table-container tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--border-color);
+    text-align: left;
+    min-width: 0;
+  }
+
+  .table-container tbody td:last-child {
+    border-bottom: none;
+  }
+
+  .table-container tbody td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  .table-container tbody td[data-label] > span,
+  .table-container tbody td[data-label] > div {
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  /* Primary column doubles as the bold card title */
+  .table-container tbody td:first-child {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+  }
+
+  /* Empty / colSpan state rows */
+  .table-container tbody td[colspan] {
+    display: block;
+    text-align: center;
+    padding: 12px 0;
+    font-size: 0.82rem;
+  }
+  .table-container tbody td[colspan]::before {
+    content: none;
+  }
+
+  /* Action cells: full-width, stacked, clearly tappable */
+  .table-container tbody td.cell-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    border-bottom: none;
+  }
+
+  .table-container tbody td.cell-actions::before {
+    display: block;
+    text-align: left;
+  }
+
+  .table-container tbody td.cell-actions > div {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .table-container tbody td.cell-actions .btn,
+  .table-container tbody td.cell-actions button {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -727,6 +919,40 @@ tr:hover td {
 
 .clean-list-item:last-child {
   border-bottom: none;
+}
+
+/* Header Action Buttons - Uniform Sizing & Centering */
+.header-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  padding: 0;
+  outline: none;
+  position: relative;
+}
+
+.header-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+.header-action-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+@media (max-width: 1024px) {
+  .header-action-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 /* ==========================================================================

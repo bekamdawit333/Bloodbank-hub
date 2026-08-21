@@ -67,6 +67,7 @@ export default function App() {
   // Header state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [rawNotifications, setRawNotifications] = useState([]);
@@ -76,6 +77,8 @@ export default function App() {
   const [incomingAlert, setIncomingAlert] = useState(null);
 
   const searchRef = useRef(null);
+  const mobileSearchButtonRef = useRef(null);
+  const mobileSearchPanelRef = useRef(null);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
@@ -83,6 +86,12 @@ export default function App() {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchFocused(false);
+      }
+      const inMobileSearchButton = mobileSearchButtonRef.current && mobileSearchButtonRef.current.contains(e.target);
+      const inMobileSearchPanel = mobileSearchPanelRef.current && mobileSearchPanelRef.current.contains(e.target);
+      if (!inMobileSearchButton && !inMobileSearchPanel) {
+        setMobileSearchOpen(false);
         setSearchFocused(false);
       }
       if (notifRef.current && !notifRef.current.contains(e.target)) {
@@ -628,18 +637,18 @@ export default function App() {
       );
     }
     switch (user.role) {
-      case "admin":
-        return <AdminDashboard tab={subTab} setTab={setSubTab} />;
-      case "donor":
-        return <DonorDashboard activeTab={subTab} setActiveTab={setSubTab} />;
-      case "station":
-        return <StationDashboard tab={subTab} setTab={setSubTab} />;
-      case "laboratory":
-        return <LabDashboard tab={subTab} setTab={setSubTab} />;
-      case "warehouse":
-        return <WarehouseDashboard tab={subTab} setTab={setSubTab} />;
-      case "hospital":
-        return <HospitalDashboard tab={subTab} setTab={setSubTab} />;
+      case 'admin':
+        return <AdminDashboard tab={subTab} setTab={setSubTab} isMobile={isMobile} />;
+      case 'donor':
+        return <DonorDashboard activeTab={subTab} setActiveTab={setSubTab} isMobile={isMobile} />;
+      case 'station':
+        return <StationDashboard tab={subTab} setTab={setSubTab} isMobile={isMobile} />;
+      case 'laboratory':
+        return <LabDashboard tab={subTab} setTab={setSubTab} isMobile={isMobile} />;
+      case 'warehouse':
+        return <WarehouseDashboard tab={subTab} setTab={setSubTab} isMobile={isMobile} />;
+      case 'hospital':
+        return <HospitalDashboard tab={subTab} setTab={setSubTab} isMobile={isMobile} />;
       default:
         return (
           <div style={{ color: "red" }}>Error: Unknown Workstation Role</div>
@@ -1346,34 +1355,35 @@ export default function App() {
             }}
           >
             {/* Top Navbar Header */}
-            <header
-              style={{
-                height: "56px",
-                background: "var(--bg-surface)",
-                borderBottom: "1px solid var(--border-color)",
-                padding: "0 24px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexShrink: 0,
-                position: "relative",
-                zIndex: 100,
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "14px" }}
-              >
+            <header style={{ 
+              height: '56px', 
+              background: 'var(--bg-surface)', 
+              borderBottom: '1px solid var(--border-color)', 
+              padding: isMobile ? '0 12px' : '0 24px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexShrink: 0,
+              position: 'relative',
+              zIndex: 100
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 {isMobile && (
-                  <button
-                    onClick={() => setMenuOpen((prev) => !prev)}
+                  <button 
+                    onClick={() => setMenuOpen(prev => !prev)}
+                    aria-label="Toggle navigation menu"
                     style={{
-                      background: "none",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-secondary)",
-                      cursor: "pointer",
-                      padding: "6px",
-                      borderRadius: "6px",
-                      display: "flex",
+                      background: 'none',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '44px',
+                      minWidth: '44px'
                     }}
                   >
                     <Menu size={18} />
@@ -1382,26 +1392,14 @@ export default function App() {
               </div>
 
               {/* Search, Notifications, and Profile Controls */}
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "16px" }}
-              >
-                {/* Role-Specific Search Field */}
-                <div
-                  ref={searchRef}
-                  style={{ position: "relative", width: "240px" }}
-                >
-                  <Search
-                    size={14}
-                    style={{
-                      position: "absolute",
-                      left: "10px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "var(--text-muted)",
-                    }}
-                  />
-                  <input
-                    type="text"
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px' }}>
+                
+                {/* Role-Specific Search Field (Desktop only) */}
+                {!isMobile && (
+                <div ref={searchRef} style={{ position: 'relative', width: '240px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input 
+                    type="text" 
                     placeholder={getSearchPlaceholder(user.role)}
                     value={searchQuery}
                     onFocus={() => setSearchFocused(true)}
@@ -1421,19 +1419,10 @@ export default function App() {
                     }}
                   />
                   {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      style={{
-                        position: "absolute",
-                        right: "8px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "var(--text-muted)",
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex' }}
                     >
                       <X size={12} />
                     </button>
@@ -1549,6 +1538,28 @@ export default function App() {
                     </div>
                   )}
                 </div>
+                )}
+
+                {/* Mobile Search Icon */}
+                {isMobile && (
+                  <div ref={mobileSearchButtonRef} style={{ display: 'flex', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => {
+                        setMobileSearchOpen(prev => !prev);
+                        setNotificationsOpen(false);
+                        setProfileOpen(false);
+                      }}
+                      aria-label="Search"
+                      title="Search"
+                      className="header-action-btn"
+                      style={{
+                        color: mobileSearchOpen ? 'var(--primary)' : 'var(--text-secondary)'
+                      }}
+                    >
+                      <Search size={18} />
+                    </button>
+                  </div>
+                )}
 
                 {/* Notification Bell Dropdown */}
                 <div ref={notifRef} style={{ position: "relative" }}>
@@ -1557,16 +1568,9 @@ export default function App() {
                       setNotificationsOpen((prev) => !prev);
                       setProfileOpen(false);
                     }}
+                    className="header-action-btn"
                     style={{
-                      position: "relative",
-                      background: "none",
-                      border: "none",
-                      color: notificationsOpen
-                        ? "var(--primary)"
-                        : "var(--text-secondary)",
-                      cursor: "pointer",
-                      padding: "6px",
-                      display: "flex",
+                      color: notificationsOpen ? 'var(--primary)' : 'var(--text-secondary)'
                     }}
                     title="Notifications"
                   >
@@ -1597,41 +1601,22 @@ export default function App() {
                     )}
                   </button>{" "}
                   {notificationsOpen && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "100%",
-                        right: 0,
-                        width: "340px",
-                        marginTop: "10px",
-                        background: "var(--bg-surface)",
-                        border: "1px solid var(--border-color)",
-                        borderRadius: "10px",
-                        boxShadow:
-                          "var(--shadow-md, 0 10px 25px rgba(0,0,0,0.18))",
-                        zIndex: 1000,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          padding: "12px 14px",
-                          borderBottom: "1px solid var(--border-color)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                          }}
-                        >
-                          <strong style={{ fontSize: "0.88rem" }}>
-                            Notifications
-                          </strong>
+                    <div className="header-dropdown" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      width: '320px',
+                      marginTop: '10px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      boxShadow: 'var(--shadow-md, 0 10px 25px rgba(0,0,0,0.18))',
+                      zIndex: 1000,
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <strong style={{ fontSize: '0.88rem' }}>Notifications</strong>
                           {unreadNotifCount > 0 && (
                             <span
                               className="badge badge-pending"
@@ -1817,15 +1802,8 @@ export default function App() {
                 {/* Theme toggle */}
                 <button
                   onClick={toggleTheme}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--text-secondary)",
-                    cursor: "pointer",
-                    padding: "6px",
-                    display: "flex",
-                  }}
-                  title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+                  className="header-action-btn"
+                  title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
                 >
                   {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
@@ -1837,15 +1815,7 @@ export default function App() {
                       setProfileOpen((prev) => !prev);
                       setNotificationsOpen(false);
                     }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
+                    className="header-action-btn"
                   >
                     <div
                       style={{
@@ -1870,39 +1840,25 @@ export default function App() {
 
                   {/* Profile Menu Dropdown */}
                   {profileOpen && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "100%",
-                        right: 0,
-                        width: "240px",
-                        marginTop: "10px",
-                        background: "var(--bg-surface)",
-                        border: "1px solid var(--border-color)",
-                        borderRadius: "10px",
-                        boxShadow:
-                          "var(--shadow-md, 0 10px 25px rgba(0,0,0,0.18))",
-                        zIndex: 1000,
-                        padding: "12px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          borderBottom: "1px solid var(--border-color)",
-                          paddingBottom: "10px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "0.88rem",
-                            fontWeight: 700,
-                            color: "var(--text-primary)",
-                          }}
-                        >
-                          {user.entity_name || user.email?.split("@")[0]}
+                    <div className="header-dropdown" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      width: '240px',
+                      marginTop: '10px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      boxShadow: 'var(--shadow-md, 0 10px 25px rgba(0,0,0,0.18))',
+                      zIndex: 1000,
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {user.entity_name || user.email?.split('@')[0]}
                         </div>
                         <div
                           style={{
@@ -1931,17 +1887,19 @@ export default function App() {
                           setProfileOpen(false);
                         }}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          padding: "8px",
-                          borderRadius: "6px",
-                          border: "none",
-                          background: "transparent",
-                          color: "var(--text-primary)",
-                          fontSize: "0.8rem",
-                          cursor: "pointer",
-                          textAlign: "left",
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          boxSizing: 'border-box'
                         }}
                         onMouseEnter={(e) =>
                           (e.currentTarget.style.background = "var(--bg-main)")
@@ -1956,18 +1914,20 @@ export default function App() {
                       <button
                         onClick={handleLogout}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          padding: "8px",
-                          borderRadius: "6px",
-                          border: "none",
-                          background: "rgba(239,35,60,0.08)",
-                          color: "#ef233c",
-                          fontSize: "0.8rem",
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'rgba(239,35,60,0.08)',
+                          color: '#ef233c',
+                          fontSize: '0.8rem',
                           fontWeight: 600,
-                          cursor: "pointer",
-                          textAlign: "left",
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          boxSizing: 'border-box'
                         }}
                         onMouseEnter={(e) =>
                           (e.currentTarget.style.background =
@@ -1986,11 +1946,110 @@ export default function App() {
               </div>
             </header>
 
+            {/* Mobile Search Panel (fixed under header) */}
+            {isMobile && mobileSearchOpen && (
+              <div ref={mobileSearchPanelRef} style={{
+                position: 'fixed',
+                top: '56px',
+                left: 0,
+                right: 0,
+                zIndex: 999,
+                background: 'var(--bg-surface)',
+                borderBottom: '1px solid var(--border-color)',
+                boxShadow: 'var(--shadow-md, 0 10px 25px rgba(0,0,0,0.12))',
+                padding: '12px'
+              }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input 
+                    type="text"
+                    autoFocus
+                    placeholder={getSearchPlaceholder(user.role)}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setSearchFocused(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 40px',
+                      fontSize: '0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-main)',
+                      color: 'var(--text-primary)',
+                      outline: 'none'
+                    }}
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex', minHeight: '40px', minWidth: '40px', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {searchFocused && searchQuery.trim().length > 0 && (
+                  <div style={{
+                    marginTop: '8px',
+                    maxHeight: '340px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', padding: '4px 6px', textTransform: 'uppercase' }}>
+                      Search Results ({searchResults.length})
+                    </div>
+                    {searchResults.length === 0 ? (
+                      <div style={{ padding: '14px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        No matches found for "{searchQuery}"
+                      </div>
+                    ) : (
+                      searchResults.map((res, i) => (
+                        <div 
+                          key={i}
+                          onClick={() => {
+                            setSubTab(res.tab);
+                            setSearchFocused(false);
+                            setSearchQuery('');
+                            setMobileSearchOpen(false);
+                          }}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '10px',
+                            background: 'var(--bg-main)'
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {res.title}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                              {res.desc}
+                            </div>
+                          </div>
+                          <span className="badge badge-approved" style={{ fontSize: '0.65rem', flexShrink: 0 }}>
+                            {res.category}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Dashboard Scrollable View Container */}
-            <div
-              style={{ flex: 1, padding: "24px", overflowY: "auto" }}
-              className="animate-fade-in"
-            >
+            <div style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto' }} className="animate-fade-in">
               {renderDashboardContent()}
             </div>
           </main>

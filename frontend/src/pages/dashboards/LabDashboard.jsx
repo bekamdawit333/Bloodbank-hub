@@ -5,9 +5,10 @@ import {
   Award, Package, Truck, Calendar, Filter, Search, ClipboardList
 } from 'lucide-react';
 import { api } from '../../services/api';
+import SelectDropdown from '../../components/common/SelectDropdown';
 import BottomToast from '../../components/common/BottomToast';
 
-export default function LabDashboard({ tab = 'dashboard', setTab }) {
+export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
   const [samples, setSamples] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -392,7 +393,7 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
 
       {/* TAB: PENDING SAMPLES & SCREENING WORKFLOW */}
       {(tab === 'pending' || tab === 'screen') && (
-        <div style={{ display: 'grid', gridTemplateColumns: selectedSample ? '1fr 1.2fr' : '1fr', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: (selectedSample && !isMobile) ? '1fr 1.2fr' : '1fr', gap: '20px', alignItems: 'start' }}>
           
           {/* Pending items queue */}
           <div className="dashboard-card animate-fade-in">
@@ -427,17 +428,17 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                       <tr key={s.id} style={{ 
                         background: selectedSample?.id === s.id ? 'rgba(124, 58, 237, 0.05)' : 'transparent' 
                       }}>
-                        <td style={{ fontWeight: 600 }}>{s.donor_name}</td>
-                        <td>
+                        <td data-label="Donor Patient" style={{ fontWeight: 600 }}>{s.donor_name}</td>
+                        <td data-label="Blood Type">
                           <span style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                             {s.blood_type}
                           </span>
                         </td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{s.station_name}</td>
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        <td data-label="Collection Station" style={{ color: 'var(--text-secondary)' }}>{s.station_name}</td>
+                        <td data-label="Logged Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           {new Date(s.collected_at).toLocaleDateString()}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                           <button 
                             onClick={() => handleSelectSample(s)}
                             className="btn btn-primary"
@@ -467,7 +468,7 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                 {/* Result Decision Selector */}
                 <div>
                   <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Screening Result Outcome</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                     <button
                       type="button"
                       onClick={() => setTestStatus('validated')}
@@ -511,14 +512,15 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                 </div>
 
                 {/* Vitals Form Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Type</label>
-                    <select value={bloodType} onChange={(e) => setBloodType(e.target.value)}>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    <SelectDropdown
+                      value={bloodType}
+                      onChange={setBloodType}
+                      ariaLabel="Blood Type"
+                      options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Hemoglobin Level</label>
@@ -530,11 +532,12 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                 {testStatus === 'validated' && (
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Dispatch to Certified Warehouse</label>
-                    <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
-                      {warehouses.map(w => (
-                        <option key={w.id} value={w.id}>{w.entity_name}</option>
-                      ))}
-                    </select>
+                    <SelectDropdown
+                      value={warehouseId}
+                      onChange={setWarehouseId}
+                      ariaLabel="Dispatch to Certified Warehouse"
+                      options={warehouses.map(w => ({ value: w.id, label: w.entity_name }))}
+                    />
                   </div>
                 )}
 
@@ -596,22 +599,22 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {displayRecords.map((r, i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{r.id}</td>
-                      <td>Abebe Kebede</td>
-                      <td>
+                      <td data-label="Record / Sample ID" style={{ fontWeight: 600 }}>{r.id}</td>
+                      <td data-label="Donor Name">Abebe Kebede</td>
+                      <td data-label="Tested Blood Type">
                         <span style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                           {r.type}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Clinical Status">
                         <span className={`badge badge-${r.status === 'Approved' ? 'approved' : 'pending'}`} style={{ fontSize: '0.68rem' }}>
                           {r.status}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      <td data-label="Screening Findings" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                         {r.result === 'Negative' ? 'HIV/Hep/Syphilis Negative (Safe)' : 'Abnormal clinical markers (Discarded)'}
                       </td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>20 Aug 2025</td>
+                      <td data-label="Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>20 Aug 2025</td>
                     </tr>
                   ))}
                 </tbody>
@@ -634,21 +637,21 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {records.map(rec => (
                     <tr key={rec.id}>
-                      <td style={{ fontWeight: 600 }}>{rec.id.substring(0, 10)}...</td>
-                      <td>{rec.donor_name}</td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{rec.fayda_id}</td>
-                      <td>
+                      <td data-label="Record ID" style={{ fontWeight: 600 }}>{rec.id.substring(0, 10)}...</td>
+                      <td data-label="Donor Name">{rec.donor_name}</td>
+                      <td data-label="FAYDA ID" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{rec.fayda_id}</td>
+                      <td data-label="Blood Type">
                         <span style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                           {rec.blood_type}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span className={`badge badge-${rec.status === 'validated' ? 'approved' : 'pending'}`} style={{ fontSize: '0.68rem' }}>
                           {rec.status === 'validated' ? 'Validated' : 'Discarded'}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{rec.health_notes}</td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      <td data-label="Findings" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{rec.health_notes}</td>
+                      <td data-label="Screening Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {new Date(rec.collected_at).toLocaleDateString()}
                       </td>
                     </tr>
@@ -687,20 +690,20 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                   { donor_name: 'Sara Bekele', fayda_id: 'FAY-44712', id: 'SMP-2025-004', result: 'Healthy / Approved', points_awarded: 100, date: '2025-08-18' }
                 ]).map((p, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: 600 }}>{p.donor_name}</td>
-                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{p.fayda_id}</td>
-                    <td style={{ fontSize: '0.82rem' }}>{p.id}</td>
-                    <td>
+                    <td data-label="Donor Patient" style={{ fontWeight: 600 }}>{p.donor_name}</td>
+                    <td data-label="FAYDA ID" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{p.fayda_id}</td>
+                    <td data-label="Sample ID" style={{ fontSize: '0.82rem' }}>{p.id}</td>
+                    <td data-label="Screening Result">
                       <span className="badge badge-approved" style={{ fontSize: '0.68rem' }}>
                         {p.result}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Points Awarded">
                       <span style={{ color: '#f59e0b', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Award size={14} /> +{p.points_awarded} pts
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <td data-label="Date Processed" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       {new Date(p.date).toLocaleDateString()}
                     </td>
                   </tr>
@@ -821,20 +824,20 @@ export default function LabDashboard({ tab = 'dashboard', setTab }) {
                   { id: 'SMP-2025-004', blood_type: 'AB+', quantity: 1, destination: 'Central Regional Warehouse', status: 'Validated & Sent to Warehouse', date: '2025-08-18' }
                 ]).map((item, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: 600 }}>{item.id}</td>
-                    <td>
+                    <td data-label="Sample / Bag ID" style={{ fontWeight: 600 }}>{item.id}</td>
+                    <td data-label="Tested Blood Type">
                       <span style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                         {item.blood_type}
                       </span>
                     </td>
-                    <td>{item.quantity} unit</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{item.destination}</td>
-                    <td>
+                    <td data-label="Quantity">{item.quantity} unit</td>
+                    <td data-label="Destination Warehouse" style={{ color: 'var(--text-secondary)' }}>{item.destination}</td>
+                    <td data-label="Transfer Status">
                       <span className="badge badge-approved" style={{ fontSize: '0.68rem' }}>
                         {item.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <td data-label="Dispatch Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       {new Date(item.date).toLocaleDateString()}
                     </td>
                   </tr>

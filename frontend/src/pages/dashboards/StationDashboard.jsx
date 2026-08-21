@@ -5,6 +5,7 @@ import {
   ClipboardList, Check, Database, Wifi, WifiOff, FileText, Calendar, Filter 
 } from 'lucide-react';
 import { api } from '../../services/api';
+import SelectDropdown from '../../components/common/SelectDropdown';
 import BottomToast from '../../components/common/BottomToast';
 
 const DB_NAME = 'BloodBankStationOffline';
@@ -67,7 +68,7 @@ async function deleteOfflineRegistration(tempId) {
   });
 }
 
-export default function StationDashboard({ tab = 'dashboard', setTab }) {
+export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }) {
   const [queryId, setQueryId] = useState('');
   const [searched, setSearched] = useState(false);
   const [donorResult, setDonorResult] = useState(null);
@@ -663,7 +664,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
               <p>Verify 90-day donation interval and donor health status before collection.</p>
             </div>
 
-            <form onSubmit={handleLookup} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <form onSubmit={handleLookup} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', marginBottom: '20px' }}>
               <input
                 type="text"
                 placeholder="Enter FAYDA ID (e.g. FAY-12345) or Phone Number"
@@ -807,7 +808,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
               <p>Scan or enter FAYDA National ID or phone number to retrieve donor profile and collect sample.</p>
             </div>
 
-            <form onSubmit={handleLookup} style={{ display: 'flex', gap: '10px' }}>
+            <form onSubmit={handleLookup} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px' }}>
               <input
                 type="text"
                 placeholder="Enter FAYDA ID (e.g. FAY-12345) or Phone Number"
@@ -894,10 +895,20 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                     <>
                       {renderQuestionnaireForm()}
                       {renderVitalsForm()}
-                      <select value={selectedLabId} onChange={(e) => setSelectedLabId(e.target.value)} required>
-                        <option value="">Select approved laboratory</option>
-                        {labs.map(lab => <option key={lab.id} value={lab.id}>{lab.entity_name}</option>)}
-                      </select>
+
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Assign Screening Laboratory</label>
+                        <SelectDropdown
+                          value={selectedLabId}
+                          onChange={setSelectedLabId}
+                          ariaLabel="Assign Screening Laboratory"
+                          options={[
+                            { value: '', label: 'Select approved laboratory' },
+                            ...labs.map(l => ({ value: l.id, label: l.entity_name }))
+                          ]}
+                        />
+                      </div>
+
                       <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!screeningComplete || loading || !selectedLabId}>
                         <Droplet size={16} /> Collect New Donation & Send to Lab
                       </button>
@@ -934,11 +945,12 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Group</label>
-                      <select value={bloodType} onChange={(e) => setBloodType(e.target.value)}>
-                        {['O+', 'A+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-'].map(t => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
-                      </select>
+                      <SelectDropdown
+                        value={bloodType}
+                        onChange={setBloodType}
+                        ariaLabel="Blood Group"
+                        options={['O+', 'A+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-'].map(t => ({ value: t, label: t }))}
+                      />
                     </div>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Date of Birth</label>
@@ -946,10 +958,15 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                     </div>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Gender</label>
-                      <select value={gender} onChange={(e) => setGender(e.target.value)}>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
+                      <SelectDropdown
+                        value={gender}
+                        onChange={setGender}
+                        ariaLabel="Gender"
+                        options={[
+                          { value: 'Male', label: 'Male' },
+                          { value: 'Female', label: 'Female' }
+                        ]}
+                      />
                     </div>
                   </div>
 
@@ -960,6 +977,20 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
 
                   {renderQuestionnaireForm()}
                   {renderVitalsForm()}
+
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Assign Screening Laboratory</label>
+                    <SelectDropdown
+                      value={selectedLabId || (labs[0] ? labs[0].id : '')}
+                      onChange={setSelectedLabId}
+                      ariaLabel="Assign Screening Laboratory"
+                      options={
+                        labs.length === 0
+                          ? [{ value: '', label: 'Central Blood Testing Laboratory (Auto)' }]
+                          : labs.map(l => ({ value: l.id, label: l.entity_name }))
+                      }
+                    />
+                  </div>
 
                   <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }} disabled={!screeningComplete || loading}>
                     <UserCheck size={16} /> Register Profile & Collect Blood
@@ -990,7 +1021,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
           </div>
 
           {/* Filter Bar */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', marginBottom: '16px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input 
@@ -1001,16 +1032,17 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                 style={{ paddingLeft: '32px', width: '100%' }}
               />
             </div>
-            <select 
-              value={donorBloodTypeFilter} 
-              onChange={(e) => setDonorBloodTypeFilter(e.target.value)}
-              style={{ width: '140px' }}
-            >
-              <option value="ALL">All Blood Types</option>
-              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div style={{ width: isMobile ? '100%' : '140px' }}>
+              <SelectDropdown
+                value={donorBloodTypeFilter}
+                onChange={setDonorBloodTypeFilter}
+                ariaLabel="Filter by Blood Type"
+                options={[
+                  { value: 'ALL', label: 'All Blood Types' },
+                  ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => ({ value: t, label: t }))
+                ]}
+              />
+            </div>
           </div>
 
           {loadingDonors ? (
@@ -1042,24 +1074,24 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                     })
                     .map(d => (
                       <tr key={d.fayda_id}>
-                        <td style={{ fontWeight: 600 }}>{d.name}</td>
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{d.fayda_id}</td>
-                        <td>
+                        <td data-label="Donor Name" style={{ fontWeight: 600 }}>{d.name}</td>
+                        <td data-label="FAYDA ID" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{d.fayda_id}</td>
+                        <td data-label="Blood Type">
                           <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                             {d.blood_type}
                           </span>
                         </td>
-                        <td style={{ fontSize: '0.82rem' }}>{d.phone}</td>
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        <td data-label="Phone" style={{ fontSize: '0.82rem' }}>{d.phone}</td>
+                        <td data-label="Last Donation" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           {d.last_donation_date ? new Date(d.last_donation_date).toLocaleDateString() : 'Never'}
                         </td>
-                        <td>
+                        <td data-label="Eligibility">
                           <span className={`badge badge-${d.is_eligible ? 'approved' : 'pending'}`} style={{ fontSize: '0.68rem' }}>
                             {d.is_eligible ? 'Eligible' : 'Deferral'}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{d.total_donations || 0}</td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td data-label="Donations" style={{ fontWeight: 600 }}>{d.total_donations || 0}</td>
+                        <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
                           <button
                             onClick={() => {
                               setQueryId(d.fayda_id);
@@ -1192,19 +1224,19 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
                 <tbody>
                   {samples.map(s => (
                     <tr key={s.id}>
-                      <td style={{ fontWeight: 600 }}>{s.donor_name}</td>
-                      <td>
+                      <td data-label="Donor Name" style={{ fontWeight: 600 }}>{s.donor_name}</td>
+                      <td data-label="Blood Type">
                         <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
                           {s.blood_type}
                         </span>
                       </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{s.lab_name}</td>
-                      <td>
+                      <td data-label="Routed Lab" style={{ color: 'var(--text-secondary)' }}>{s.lab_name}</td>
+                      <td data-label="Bag Status">
                         <span className={`badge badge-${s.status}`}>
                           {s.status}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      <td data-label="Collected Date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {new Date(s.collected_at).toLocaleDateString()}
                       </td>
                       <td>
