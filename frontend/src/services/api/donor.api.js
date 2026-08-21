@@ -9,28 +9,6 @@ export const donorApi = {
     });
     return handleResponse(response);
   },
-  bookAppointment: async (stationId, dateTime) => {
-    const response = await fetch(`${BASE_URL}/donor/appointments`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ station_id: stationId, date_time: dateTime }),
-    });
-    return handleResponse(response);
-  },
-  getAppointments: async () => {
-    const response = await fetch(`${BASE_URL}/donor/appointments`, {
-      method: 'GET',
-      headers: getHeaders(),
-    });
-    return handleResponse(response);
-  },
-  cancelAppointment: async (apptId) => {
-    const response = await fetch(`${BASE_URL}/donor/appointments/${apptId}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    return handleResponse(response);
-  },
   getStations: async () => {
     const response = await fetch(`${BASE_URL}/donor/stations`, {
       method: 'GET',

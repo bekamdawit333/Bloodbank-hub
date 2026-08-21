@@ -6,7 +6,6 @@ import {
 import { api } from '../../services/api';
 import Leaderboard from '../../components/common/Leaderboard';
 import Announcements from '../../components/common/Announcements';
-import BottomToast from '../../components/common/BottomToast';
 
 export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }) {
   const [data, setData] = useState(null);
@@ -17,30 +16,10 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
   const [countdownText, setCountdownText] = useState('');
   const [isEligibleNow, setIsEligibleNow] = useState(true);
 
-  // Appointments states
-  const [appointments, setAppointments] = useState([]);
-  const [stations, setStations] = useState([]);
-  const [bookingStationId, setBookingStationId] = useState('');
-  const [bookingDateTime, setBookingDateTime] = useState('');
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(null);
-  const [bookingError, setBookingError] = useState(null);
-
   // Messages states
   const [messages, setMessages] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
-
-  const loadAppointments = async () => {
-    try {
-      const appts = await api.donor.getAppointments();
-      setAppointments(appts || []);
-      const stats = await api.donor.getStations();
-      setStations(stats || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const loadMessages = async () => {
     setLoadingMessages(true);
@@ -58,44 +37,10 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
   };
 
   useEffect(() => {
-    if (activeTab === 'appointments' || activeTab === 'reminders') {
-      loadAppointments();
-    }
     if (activeTab === 'messages') {
       loadMessages();
     }
   }, [activeTab]);
-
-  const handleBookAppointment = async (e) => {
-    e.preventDefault();
-    if (!bookingStationId || !bookingDateTime) {
-      setBookingError('Please select both a donation station and a schedule slot.');
-      return;
-    }
-    setBookingLoading(true);
-    setBookingError(null);
-    setBookingSuccess(null);
-    try {
-      const res = await api.donor.bookAppointment(bookingStationId, bookingDateTime);
-      setBookingSuccess(res.message || 'Appointment scheduled successfully!');
-      setBookingStationId('');
-      setBookingDateTime('');
-      await loadAppointments();
-    } catch (err) {
-      setBookingError(err.message || 'Failed to book slot.');
-    } finally {
-      setBookingLoading(false);
-    }
-  };
-
-  const handleCancelAppointment = async (apptId) => {
-    try {
-      await api.donor.cancelAppointment(apptId);
-      await loadAppointments();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const loadDashboardData = async () => {
     try {
@@ -179,9 +124,6 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
           {error}
         </div>
       )}
-
-      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
-      <BottomToast message={bookingSuccess} onClose={() => setBookingSuccess(null)} />
 
       {/* DASHBOARD OVERVIEW TAB */}
       {(activeTab === 'dashboard' || activeTab === 'main' || !activeTab) && (
@@ -327,11 +269,11 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
               </div>
 
               <button 
-                onClick={() => setActiveTab('appointments')} 
+                onClick={() => setActiveTab('campaigns')} 
                 className="quick-action-btn"
                 style={{ marginTop: 'auto', fontSize: '0.78rem', padding: '8px 14px' }}
               >
-                {isEligibleNow ? 'Schedule Donation' : 'View Eligibility Details'}
+                {isEligibleNow ? 'Explore Campaigns' : 'View Eligibility Details'}
               </button>
             </div>
 
@@ -570,59 +512,6 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
             </div>
           </div>
 
-        </div>
-      )}
-
-      {/* APPOINTMENTS TAB */}
-      {activeTab === 'appointments' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
-          <div className="dashboard-card animate-fade-in">
-            <div className="dashboard-header" style={{ marginBottom: '16px' }}>
-              <h2>Schedule Donation</h2>
-              <p>Choose one approved station and a future donation time.</p>
-            </div>
-            {bookingError && <div className="auth-error" style={{ marginBottom: '12px' }}>{bookingError}</div>}
-            {bookingSuccess && <div className="auth-success" style={{ marginBottom: '12px' }}>{bookingSuccess}</div>}
-            <form onSubmit={handleBookAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                Donation Station
-                <select value={bookingStationId} onChange={(e) => setBookingStationId(e.target.value)} required style={{ width: '100%', marginTop: '5px' }}>
-                  <option value="">Select station</option>
-                  {stations.map(station => <option key={station.id} value={station.id}>{station.entity_name}</option>)}
-                </select>
-              </label>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                Donation Date and Time
-                <input type="datetime-local" value={bookingDateTime} min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)} onChange={(e) => setBookingDateTime(e.target.value)} required style={{ width: '100%', marginTop: '5px', boxSizing: 'border-box' }} />
-              </label>
-              <button type="submit" className="btn btn-primary" disabled={bookingLoading} style={{ justifyContent: 'center' }}>
-                <Calendar size={16} /> {bookingLoading ? 'Scheduling...' : 'Schedule Donation'}
-              </button>
-            </form>
-          </div>
-
-          <div className="dashboard-card animate-fade-in">
-            <div className="dashboard-header" style={{ marginBottom: '16px' }}>
-              <h2>My Donation Appointments</h2>
-              <p>Present your FAYDA ID at the selected station. Your demographic profile will load there.</p>
-            </div>
-            {appointments.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No scheduled appointments.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {appointments.map(appointment => (
-                  <div key={appointment.id} style={{ padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-main)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{appointment.station?.entity_name || 'Donation Station'}</strong>
-                      <span className={`badge badge-${appointment.status === 'scheduled' ? 'approved' : 'pending'}`}>{appointment.status}</span>
-                    </div>
-                    <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(appointment.date_time).toLocaleString()}</div>
-                    {appointment.status === 'scheduled' && <button type="button" onClick={() => handleCancelAppointment(appointment.id)} className="btn" style={{ marginTop: '10px', padding: '5px 9px', fontSize: '0.72rem' }}>Cancel Appointment</button>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
 
