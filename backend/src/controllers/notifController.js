@@ -195,7 +195,7 @@ async function getNotifications(req, res) {
     } else if (role === 'laboratory') {
       // Pending samples -> 'pending' tab
       const pendingSamples = await mainDb.bloodSample.findMany({
-        where: { status: 'collected' },
+        where: { lab_id: userId, status: 'pending_lab' },
         orderBy: { collected_at: 'desc' },
         take: 8,
       });

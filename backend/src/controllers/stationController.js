@@ -260,6 +260,15 @@ async function createBloodSample(req, res) {
       }
     });
 
+    const io = req.app.get('io');
+    if (io && targetLabId) {
+      io.emit('notification', {
+        recipientRole: 'laboratory',
+        recipientId: targetLabId,
+        message: 'A new blood sample is waiting for laboratory screening.'
+      });
+    }
+
     // Send thank you SMS for donation (Safe try-catch)
     try {
       if (donor.phone) {
