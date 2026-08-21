@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import Analytics from '../../components/common/Analytics';
+import BottomToast from '../../components/common/BottomToast';
 
 export default function AdminDashboard({ tab = 'dashboard', setTab }) {
   const [users, setUsers] = useState([]);
@@ -52,10 +53,12 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
 
   const handleStatusUpdate = async (userId, newStatus) => {
     setLoading(true);
+    setError(null);
     try {
       await api.admin.updateUserStatus(userId, newStatus);
       const usersData = await api.admin.getUsers();
       setUsers(usersData || []);
+      setSuccessMsg(`Workstation registration successfully marked as ${newStatus}.`);
     } catch (err) {
       setError(err.message || 'Failed to update user status.');
     } finally {
@@ -70,6 +73,7 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
     try {
       const data = await api.admin.triggerReminders();
       setRemindersResult(data);
+      setSuccessMsg(data.message || 'Donation reminders triggered and dispatched via SMS successfully!');
     } catch (err) {
       setError(err.message || 'Failed to trigger donation reminders.');
     } finally {
@@ -135,6 +139,9 @@ export default function AdminDashboard({ tab = 'dashboard', setTab }) {
           {error}
         </div>
       )}
+
+      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
+      <BottomToast message={successMsg} onClose={() => setSuccessMsg(null)} />
 
       {/* DASHBOARD HOME OVERVIEW */}
       {(tab === 'dashboard' || tab === 'main' || !tab) && (

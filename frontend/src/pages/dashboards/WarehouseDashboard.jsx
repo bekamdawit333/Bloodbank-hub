@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, Truck, Megaphone, PlusCircle, Calendar, MapPin, RefreshCw, 
-  Send, ShieldAlert, AlertCircle, ArrowRight, CheckCircle2, ClipboardList, 
-  Check, Droplet, Clock, MessageSquare, AlertTriangle, Layers 
+import {
+  Package, Truck, Megaphone, PlusCircle, Calendar, MapPin, RefreshCw,
+  Send, ShieldAlert, AlertCircle, ArrowRight, CheckCircle2, ClipboardList,
+  Check, Droplet, Clock, MessageSquare, AlertTriangle, Layers
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { io } from 'socket.io-client';
+import BottomToast from '../../components/common/BottomToast';
 
 export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
   const [stock, setStock] = useState([]);
   const [requests, setRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -69,7 +70,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
   // Auto-dismiss alert popups
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(null), 4000);
+      const timer = setTimeout(() => setSuccess(null), 10000);
       return () => clearTimeout(timer);
     }
   }, [success]);
@@ -145,7 +146,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
     try {
       await api.warehouse.createAnnouncement(payload);
       setSuccess('Campaign announcement published successfully!');
-      
+
       setAnnTitle('');
       setAnnContent('');
       setAnnType('campaign');
@@ -247,16 +248,13 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
         </div>
       )}
 
-      {success && (
-        <div style={{ background: 'rgba(6,214,160,0.1)', color: '#06d6a0', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(6,214,160,0.2)', fontSize: '0.85rem' }}>
-          {success}
-        </div>
-      )}
+      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
+      <BottomToast message={success} onClose={() => setSuccess(null)} />
 
       {/* DASHBOARD OVERVIEW */}
       {(tab === 'dashboard' || tab === 'main' || !tab) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          
+
           {/* Header */}
           <div className="dashboard-header">
             <h2>Warehouse Overview</h2>
@@ -265,7 +263,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
 
           {/* 4 Stat Cards Row */}
           <div className="stat-card-grid">
-            
+
             {/* Stat 1: Total Stock (Units) */}
             <div className="stat-card">
               <div className="stat-card-top">
@@ -326,7 +324,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
 
           {/* 3 Column Grid Section */}
           <div className="dashboard-grid-3">
-            
+
             {/* Card 1: Stock by Blood Type (Bar Chart) */}
             <div className="dashboard-card">
               <div className="dashboard-card-title">
@@ -346,13 +344,13 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
 
                     return (
                       <g key={item.blood_type}>
-                        <rect 
-                          x={x} 
-                          y={y} 
-                          width="22" 
-                          height={barHeight} 
-                          rx="4" 
-                          fill={isLow ? '#ef233c' : '#059669'} 
+                        <rect
+                          x={x}
+                          y={y}
+                          width="22"
+                          height={barHeight}
+                          rx="4"
+                          fill={isLow ? '#ef233c' : '#059669'}
                           opacity={0.85}
                         />
                         <text x={x + 11} y={y - 4} textAnchor="middle" fontSize="8" fontWeight="bold" fill="var(--text-primary)">
@@ -367,8 +365,8 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                 </svg>
               </div>
 
-              <button 
-                onClick={() => setTab('inventory')} 
+              <button
+                onClick={() => setTab('inventory')}
                 className="view-all-btn"
               >
                 View Full Inventory <ArrowRight size={13} />
@@ -400,8 +398,8 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                 ))}
               </div>
 
-              <button 
-                onClick={() => setTab('dispatch')} 
+              <button
+                onClick={() => setTab('dispatch')}
                 className="view-all-btn"
               >
                 View All Dispatches <ArrowRight size={13} />
@@ -415,26 +413,26 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', flex: 1 }}>
-                <button 
-                  onClick={() => setTab('incoming')} 
+                <button
+                  onClick={() => setTab('incoming')}
                   className="quick-action-btn"
                 >
                   <Package size={16} /> Add Incoming Stock
                 </button>
-                <button 
-                  onClick={() => setTab('campaigns')} 
+                <button
+                  onClick={() => setTab('campaigns')}
                   className="quick-action-btn"
                 >
                   <Megaphone size={16} /> Create Campaign
                 </button>
-                <button 
-                  onClick={() => setTab('alerts')} 
+                <button
+                  onClick={() => setTab('alerts')}
                   className="quick-action-btn"
                 >
                   <Send size={16} /> Send SMS Alert
                 </button>
-                <button 
-                  onClick={() => setTab('dispatch')} 
+                <button
+                  onClick={() => setTab('dispatch')}
                   className="quick-action-btn btn-outline"
                 >
                   <ClipboardList size={16} /> View Requests
@@ -450,7 +448,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
       {/* INVENTORY TAB */}
       {tab === 'inventory' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           <div className="dashboard-card animate-fade-in">
             <div className="dashboard-header" style={{ marginBottom: '16px' }}>
               <h2>Central Blood Bank Inventory</h2>
@@ -461,12 +459,12 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
               {stock.map(s => {
                 const isLow = s.quantity < 100;
                 return (
-                  <div 
+                  <div
                     key={s.blood_type}
-                    style={{ 
-                      background: 'var(--bg-main)', 
-                      border: isLow ? '1px solid rgba(239,35,60,0.4)' : '1px solid var(--border-color)', 
-                      borderRadius: '8px', 
+                    style={{
+                      background: 'var(--bg-main)',
+                      border: isLow ? '1px solid rgba(239,35,60,0.4)' : '1px solid var(--border-color)',
+                      borderRadius: '8px',
                       padding: '14px',
                       display: 'flex',
                       flexDirection: 'column',
@@ -486,11 +484,11 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                       onClick={() => handleSendEmergencyAlert(s.blood_type)}
                       disabled={alertingType === s.blood_type}
                       className="btn"
-                      style={{ 
-                        padding: '4px', 
-                        fontSize: '0.7rem', 
-                        background: isLow ? 'rgba(239,35,60,0.15)' : 'rgba(5,150,105,0.1)', 
-                        color: isLow ? '#ef233c' : '#059669', 
+                      style={{
+                        padding: '4px',
+                        fontSize: '0.7rem',
+                        background: isLow ? 'rgba(239,35,60,0.15)' : 'rgba(5,150,105,0.1)',
+                        color: isLow ? '#ef233c' : '#059669',
                         border: 'none',
                         marginTop: '4px'
                       }}
@@ -546,14 +544,14 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
       {/* INCOMING STOCK RECEIVING DOCK TAB */}
       {tab === 'incoming' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="dashboard-header">
               <h2>Incoming Validated Stock Receiving Dock</h2>
               <p>Certified, laboratory-screened blood units arriving from donation stations and testing labs.</p>
             </div>
-            <button 
-              onClick={() => setShowIntakeModal(prev => !prev)} 
+            <button
+              onClick={() => setShowIntakeModal(prev => !prev)}
               className="btn btn-primary"
             >
               <PlusCircle size={16} /> {showIntakeModal ? 'Close Form' : 'Manual Cold Chain Intake'}
@@ -572,8 +570,8 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Blood Group</label>
-                    <select 
-                      value={receiveForm.blood_type} 
+                    <select
+                      value={receiveForm.blood_type}
                       onChange={(e) => setReceiveForm({ ...receiveForm, blood_type: e.target.value })}
                     >
                       {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
@@ -583,22 +581,22 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Units Received (Bags)</label>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      max="100" 
-                      value={receiveForm.quantity} 
-                      onChange={(e) => setReceiveForm({ ...receiveForm, quantity: e.target.value })} 
-                      required 
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={receiveForm.quantity}
+                      onChange={(e) => setReceiveForm({ ...receiveForm, quantity: e.target.value })}
+                      required
                     />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Sample / Barcode ID (Optional)</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. SMP-98421" 
-                      value={receiveForm.sample_id} 
-                      onChange={(e) => setReceiveForm({ ...receiveForm, sample_id: e.target.value })} 
+                    <input
+                      type="text"
+                      placeholder="e.g. SMP-98421"
+                      value={receiveForm.sample_id}
+                      onChange={(e) => setReceiveForm({ ...receiveForm, sample_id: e.target.value })}
                     />
                   </div>
                 </div>
@@ -699,12 +697,12 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
             {stock.map(s => {
               const isLow = s.quantity < 100;
               return (
-                <div 
+                <div
                   key={s.blood_type}
-                  style={{ 
-                    background: 'var(--bg-main)', 
-                    border: isLow ? '1px solid rgba(239,35,60,0.4)' : '1px solid var(--border-color)', 
-                    borderRadius: '10px', 
+                  style={{
+                    background: 'var(--bg-main)',
+                    border: isLow ? '1px solid rgba(239,35,60,0.4)' : '1px solid var(--border-color)',
+                    borderRadius: '10px',
                     padding: '16px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -726,9 +724,9 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
                     onClick={() => handleSendEmergencyAlert(s.blood_type)}
                     disabled={alertingType === s.blood_type}
                     className="btn btn-primary"
-                    style={{ 
-                      padding: '6px', 
-                      fontSize: '0.75rem', 
+                    style={{
+                      padding: '6px',
+                      fontSize: '0.75rem',
                       marginTop: '4px',
                       justifyContent: 'center'
                     }}
@@ -807,7 +805,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab }) {
       {/* CAMPAIGNS & ANNOUNCEMENTS TAB */}
       {(tab === 'campaigns' || tab === 'reports' || tab === 'settings') && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px', alignItems: 'start' }}>
-          
+
           {/* Create Announcement Form */}
           <div className="dashboard-card animate-fade-in">
             <div className="dashboard-header" style={{ marginBottom: '14px' }}>

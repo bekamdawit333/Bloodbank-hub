@@ -5,6 +5,7 @@ import {
   ClipboardList, Check, Database, Wifi, WifiOff, FileText, Calendar, Filter 
 } from 'lucide-react';
 import { api } from '../../services/api';
+import BottomToast from '../../components/common/BottomToast';
 
 const DB_NAME = 'BloodBankStationOffline';
 const DB_VERSION = 1;
@@ -417,11 +418,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab }) {
         </div>
       )}
 
-      {success && (
-        <div style={{ background: 'rgba(6,214,160,0.1)', color: '#06d6a0', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(6,214,160,0.2)', fontSize: '0.85rem' }}>
-          {success}
-        </div>
-      )}
+      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
+      <BottomToast message={success} onClose={() => setSuccess(null)} />
 
       {/* DASHBOARD OVERVIEW */}
       {(tab === 'dashboard' || tab === 'main' || !tab) && (

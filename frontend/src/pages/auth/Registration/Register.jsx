@@ -9,6 +9,7 @@ import DonorEmailStep from './DonorEmailStep';
 import DonorCodeStep from './DonorCodeStep';
 import DonorProfileStep from './DonorProfileStep';
 import StaffRegistration from './StaffRegistration';
+import BottomToast from '../../../components/common/BottomToast';
 
 export default function Register({ onNavigateToLogin }) {
   const [role, setRole] = useState('donor');
@@ -270,12 +271,8 @@ export default function Register({ onNavigateToLogin }) {
         </div>
       )}
 
-      {/* Success */}
-      {successMsg && (
-        <div className="register-message register-success">
-          {successMsg}
-        </div>
-      )}
+      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
+      <BottomToast message={successMsg} onClose={() => setSuccessMsg(null)} />
 
       {/* Role Selector */}
       {step === 1 && (

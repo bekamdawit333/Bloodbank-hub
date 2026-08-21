@@ -6,6 +6,7 @@ import {
 import { api } from '../../services/api';
 import Leaderboard from '../../components/common/Leaderboard';
 import Announcements from '../../components/common/Announcements';
+import BottomToast from '../../components/common/BottomToast';
 
 export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }) {
   const [data, setData] = useState(null);
@@ -178,6 +179,9 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
           {error}
         </div>
       )}
+
+      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
+      <BottomToast message={bookingSuccess} onClose={() => setBookingSuccess(null)} />
 
       {/* DASHBOARD OVERVIEW TAB */}
       {(activeTab === 'dashboard' || activeTab === 'main' || !activeTab) && (

@@ -4,6 +4,7 @@ import {
   Award, Droplet, Calendar, CheckCircle2, Lock, ArrowLeft, RefreshCw, X 
 } from 'lucide-react';
 import { api } from '../../services/api';
+import BottomToast from './BottomToast';
 
 export default function ProfileView({ user, setTab, onBack }) {
   const [profileData, setProfileData] = useState(user || {});
@@ -39,7 +40,7 @@ export default function ProfileView({ user, setTab, onBack }) {
   // Auto-dismiss alert messages
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(null), 4000);
+      const timer = setTimeout(() => setSuccess(null), 10000);
       return () => clearTimeout(timer);
     }
   }, [success]);
@@ -137,14 +138,8 @@ export default function ProfileView({ user, setTab, onBack }) {
         </div>
       )}
 
-      {success && (
-        <div style={{ background: 'rgba(6,214,160,0.1)', color: '#06d6a0', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(6,214,160,0.2)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{success}</span>
-          <button onClick={() => setSuccess(null)} style={{ background: 'none', border: 'none', color: '#06d6a0', cursor: 'pointer' }}>
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      {/* Floating Bottom Success Toast (Auto-dismisses in 5s) */}
+      <BottomToast message={success} onClose={() => setSuccess(null)} />
 
       {/* Profile Overview Header Card */}
       <div className="dashboard-card" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '24px' }}>

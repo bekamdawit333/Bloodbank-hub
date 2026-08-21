@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  LogOut, Heart, Shield, Activity, User, Building, Warehouse, Sun, Moon, 
-  Menu, Users, BarChart3, ToggleLeft, History, Megaphone, Award, Calendar, 
-  Package, Truck, Search, Stethoscope, Key, Bell, CheckCircle2, UserCheck, 
+import {
+  LogOut, Heart, Shield, Activity, User, Building, Warehouse, Sun, Moon,
+  Menu, Users, BarChart3, ToggleLeft, History, Megaphone, Award, Calendar,
+  Package, Truck, Search, Stethoscope, Key, Bell, CheckCircle2, UserCheck,
   FlaskConical, ClipboardList, Inbox, MessageSquare, AlertCircle, FileText,
   X, Check, AlertTriangle, ChevronRight, ExternalLink, ChevronLeft, Home
 } from 'lucide-react';
@@ -17,6 +17,8 @@ import LabDashboard from './pages/dashboards/LabDashboard';
 import WarehouseDashboard from './pages/dashboards/WarehouseDashboard';
 import HospitalDashboard from './pages/dashboards/HospitalDashboard';
 import ProfileView from './components/common/ProfileView';
+import BottomToast from './components/common/BottomToast';
+import { io } from 'socket.io-client';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -26,13 +28,16 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
   const [menuOpen, setMenuOpen] = useState(false);
   const [subTab, setSubTab] = useState('dashboard');
-  
+
   // Header state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsRead, setNotificationsRead] = useState(false);
+  const [rawNotifications, setRawNotifications] = useState([]);
+  const [readNotifIds, setReadNotifIds] = useState([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
+  const [incomingAlert, setIncomingAlert] = useState(null);
 
   const searchRef = useRef(null);
   const notifRef = useRef(null);
@@ -182,48 +187,105 @@ export default function App() {
     }
   };
 
-  // Role-specific notifications
-  const getRoleNotifications = (role) => {
-    switch (role) {
-      case 'admin':
-        return [
-          { id: 1, title: 'New Workstation Registration', desc: 'Black Lion Hospital submitted registration for approval.', time: '10m ago', unread: true, type: 'info' },
-          { id: 2, title: 'Password Reset Ticket', desc: 'Hawassa Station submitted credential reset request.', time: '1h ago', unread: true, type: 'warning' },
-          { id: 3, title: 'System Security Alert', desc: '3-month donor reminder batch job completed successfully.', time: '3h ago', unread: false, type: 'success' },
-        ];
-      case 'donor':
-        return [
-          { id: 1, title: '3-Month Eligibility Reached!', desc: 'You are now eligible to donate blood and save lives.', time: 'Just now', unread: true, type: 'success' },
-          { id: 2, title: 'Upcoming Mega Blood Drive', desc: 'Meskel Square Mega Blood Drive is scheduled for this weekend.', time: '2h ago', unread: true, type: 'info' },
-          { id: 3, title: 'Points Credited', desc: '+100 loyalty points awarded for your recent donation.', time: '1d ago', unread: false, type: 'success' },
-        ];
-      case 'station':
-        return [
-          { id: 1, title: 'New Donor Check-in', desc: 'Abebe Kebede queued for pre-donation medical screening.', time: '5m ago', unread: true, type: 'info' },
-          { id: 2, title: 'Lab Results Ready', desc: 'Central Lab processed 12 blood samples from your station.', time: '45m ago', unread: true, type: 'success' },
-          { id: 3, title: 'Daily Target Progress', desc: 'Station achieved 80% of daily collection target.', time: '2h ago', unread: false, type: 'info' },
-        ];
-      case 'laboratory':
-        return [
-          { id: 1, title: 'Urgent Sample in Queue', desc: 'O- blood sample received from Addis Central Station.', time: '15m ago', unread: true, type: 'warning' },
-          { id: 2, title: 'Validation Completed', desc: 'Sample SMP-2025-001 approved and routed to Warehouse.', time: '1h ago', unread: false, type: 'success' },
-          { id: 3, title: 'Daily Batch Summary', desc: '45 samples screened today with 88.9% negative pass rate.', time: '4h ago', unread: false, type: 'info' },
-        ];
-      case 'warehouse':
-        return [
-          { id: 1, title: 'Low Stock Warning', desc: 'O- blood units below critical threshold (6 units remaining).', time: '20m ago', unread: true, type: 'warning' },
-          { id: 2, title: 'New Requisition Order', desc: 'Tikur Anbessa Hospital requested 10 units of O+.', time: '1h ago', unread: true, type: 'info' },
-          { id: 3, title: 'Expiring Stock Notice', desc: '2 blood bags in Shelf B-4 nearing 35-day safety limit.', time: '3h ago', unread: false, type: 'warning' },
-        ];
-      case 'hospital':
-        return [
-          { id: 1, title: 'Blood Requisition Dispatched', desc: 'Order REQ-2025-120 (10 units O+) is in transit.', time: '25m ago', unread: true, type: 'success' },
-          { id: 2, title: 'Local Reserve Alert', desc: 'AB+ stock at 8 units. Requisition recommended.', time: '2h ago', unread: true, type: 'warning' },
-          { id: 3, title: 'Patient Admitted', desc: 'Almaz Tadesse admitted to ICU ward (transfusion queued).', time: '5h ago', unread: false, type: 'info' },
-        ];
-      default:
-        return [];
+  // Live Notifications Fetching with Socket.IO and Fast Polling
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      setLoadingNotifs(true);
+      let notifs = [];
+      try {
+        const res = await api.notifications.getNotifications();
+        if (res && res.notifications) {
+          notifs = res.notifications;
+        }
+      } catch (e) {
+        console.warn('[Notifications API]', e);
+      }
+
+      // Safeguard for Admin: sync with pending users from admin API
+      if (user.role === 'admin') {
+        try {
+          const usersData = await api.admin.getUsers();
+          const pendingWorkstations = (usersData || []).filter(
+            u => u.status === 'pending' && u.role !== 'donor'
+          );
+
+          pendingWorkstations.forEach((u) => {
+            const notifId = `admin-pending-user-${u.id}`;
+            if (!notifs.some(n => n.id === notifId)) {
+              notifs.unshift({
+                id: notifId,
+                category: 'approvals',
+                title: 'Workstation Registration Pending',
+                desc: `${u.entity_name || u.email} (${(u.role || '').toUpperCase()}) submitted registration for authorization.`,
+                time: 'Awaiting Action',
+                type: 'warning',
+                unread: true,
+              });
+            }
+          });
+        } catch (adminErr) {
+          console.warn('[Admin pending users sync]', adminErr);
+        }
+      }
+
+      setRawNotifications(notifs);
+    } catch (err) {
+      console.warn('[Notifications] Failed to fetch live notifications:', err);
+    } finally {
+      setLoadingNotifs(false);
     }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setRawNotifications([]);
+      return;
+    }
+
+    fetchNotifications();
+
+    // Fast polling every 4 seconds
+    const interval = setInterval(fetchNotifications, 4000);
+
+    // Fetch immediately when user switches tabs/focuses window
+    const handleFocus = () => fetchNotifications();
+    window.addEventListener('focus', handleFocus);
+
+    // Socket.io live updates
+    let socket;
+    try {
+      socket = io('http://localhost:5000');
+      socket.on('new_workstation_registered', (data) => {
+        fetchNotifications();
+        if (user.role === 'admin') {
+          setIncomingAlert(`🔔 ${data.message || 'New workstation registration awaiting approval!'}`);
+        }
+      });
+      socket.on('notification', (data) => {
+        fetchNotifications();
+        if (data?.message) {
+          setIncomingAlert(`🔔 ${data.message}`);
+        }
+      });
+    } catch (e) {
+      console.warn('[WebSocket Error]:', e);
+    }
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      if (socket) socket.disconnect();
+    };
+  }, [user?.id, subTab]);
+
+  const handleMarkAsRead = (id) => {
+    setReadNotifIds(prev => [...new Set([...prev, id])]);
+  };
+
+  const handleMarkAllRead = () => {
+    const allIds = rawNotifications.map(n => n.id);
+    setReadNotifIds(prev => [...new Set([...prev, ...allIds])]);
   };
 
   // Get active dashboard component based on user role
@@ -295,16 +357,19 @@ export default function App() {
   };
 
   const searchResults = user ? getRoleSearchResults(user.role, searchQuery) : [];
-  const notifications = user ? getRoleNotifications(user.role) : [];
-  const unreadNotifCount = notificationsRead ? 0 : notifications.filter(n => n.unread).length;
+  const notifications = rawNotifications.filter(n => !readNotifIds.includes(n.id));
+  const unreadNotifCount = notifications.filter(n => n.unread !== false).length;
 
   return (
     <div className={user ? `theme-${user.role}` : ''} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>
-      
+
+      {/* Real-time incoming toast alert */}
+      <BottomToast message={incomingAlert} onClose={() => setIncomingAlert(null)} />
+
       {/* Toggling Toolbar for Guest Views */}
       {view !== 'dashboard' && view !== 'landing' && (
         <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 100, display: 'flex', gap: '10px' }}>
-          <button 
+          <button
             onClick={toggleTheme}
             style={{
               background: 'var(--bg-surface)',
@@ -328,7 +393,7 @@ export default function App() {
 
       {/* Landing and Auth Views */}
       {view === 'landing' && (
-        <Landing 
+        <Landing
           onNavigateToLogin={() => setView('login')}
           onNavigateToRegister={() => setView('register')}
         />
@@ -337,15 +402,15 @@ export default function App() {
       {view === 'login' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '20px', background: 'radial-gradient(circle at top right, rgba(239,35,60,0.07) 0%, transparent 50%)' }}>
           <div style={{ position: 'absolute', top: '20px', left: '20px' }}>
-            <button 
-              onClick={() => setView('landing')} 
-              className="btn" 
+            <button
+              onClick={() => setView('landing')}
+              className="btn"
               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 16px' }}
             >
               ← Back to Home
             </button>
           </div>
-          <Login 
+          <Login
             onLoginSuccess={handleLoginSuccess}
             onNavigateToRegister={() => setView('register')}
           />
@@ -355,15 +420,15 @@ export default function App() {
       {view === 'register' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '20px', background: 'radial-gradient(circle at top left, rgba(58,134,255,0.06) 0%, transparent 50%)' }}>
           <div style={{ position: 'absolute', top: '20px', left: '20px' }}>
-            <button 
-              onClick={() => setView('landing')} 
-              className="btn" 
+            <button
+              onClick={() => setView('landing')}
+              className="btn"
               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 16px' }}
             >
               ← Back to Home
             </button>
           </div>
-          <Register 
+          <Register
             onNavigateToLogin={() => setView('login')}
           />
         </div>
@@ -372,10 +437,10 @@ export default function App() {
       {/* Main Dashboard Layout */}
       {view === 'dashboard' && user && (
         <div style={{ display: 'flex', flex: 1, height: '100vh', overflow: 'hidden' }}>
-          
+
           {/* Mobile Sidebar backdrop overlay */}
           {isMobile && menuOpen && (
-            <div 
+            <div
               onClick={() => setMenuOpen(false)}
               style={{
                 position: 'fixed',
@@ -391,14 +456,14 @@ export default function App() {
           )}
 
           {/* Left Sidebar Navigation */}
-          <aside style={{ 
-            width: '240px', 
-            background: 'var(--sidebar-bg, #0f172a)', 
+          <aside style={{
+            width: '240px',
+            background: 'var(--sidebar-bg, #0f172a)',
             color: '#ffffff',
-            display: (isMobile && !menuOpen) ? 'none' : 'flex', 
-            flexDirection: 'column', 
-            justifyContent: 'space-between', 
-            padding: '24px 16px 16px 16px', 
+            display: (isMobile && !menuOpen) ? 'none' : 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '24px 16px 16px 16px',
             transition: 'all 0.3s ease',
             zIndex: 9999,
             ...(isMobile ? {
@@ -410,7 +475,7 @@ export default function App() {
             } : {})
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header Title with Blood Drop Icon */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px' }}>
                 <div style={{ background: '#ffffff', borderRadius: '8px', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -484,8 +549,9 @@ export default function App() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     {navItems.map(item => {
                       const isActive = subTab === item.id;
-                      // Count unread notifications for the messages/notifications item
-                      const isNotifItem = item.id === 'messages';
+                      // Category-specific count for this tab
+                      const tabUnreadCount = notifications.filter(n => n.category === item.id).length;
+
                       return (
                         <button
                           key={item.id}
@@ -520,7 +586,7 @@ export default function App() {
                         >
                           {item.icon}
                           <span style={{ flex: 1 }}>{item.label}</span>
-                          {isNotifItem && unreadNotifCount > 0 && (
+                          {tabUnreadCount > 0 && (
                             <span style={{
                               background: '#ef233c',
                               color: '#fff',
@@ -535,7 +601,7 @@ export default function App() {
                               padding: '0 4px',
                               flexShrink: 0
                             }}>
-                              {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                              {tabUnreadCount > 9 ? '9+' : tabUnreadCount}
                             </span>
                           )}
                         </button>
@@ -550,13 +616,13 @@ export default function App() {
             {/* User Profile Badge at Bottom of Sidebar */}
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                <div style={{ 
-                  width: '34px', 
-                  height: '34px', 
-                  borderRadius: '50%', 
-                  background: 'rgba(255, 255, 255, 0.15)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <div style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '0.8rem',
                   fontWeight: 700,
@@ -579,14 +645,14 @@ export default function App() {
                   <button
                     onClick={() => { setSubTab('dashboard'); setMenuOpen(false); }}
                     title="Back to Dashboard"
-                    style={{ 
+                    style={{
                       flex: 1,
-                      background: 'rgba(255,255,255,0.08)', 
-                      border: '1px solid rgba(255,255,255,0.15)', 
-                      color: 'rgba(255,255,255,0.85)', 
-                      cursor: 'pointer', 
-                      padding: '6px 8px', 
-                      borderRadius: '6px', 
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      color: 'rgba(255,255,255,0.85)',
+                      cursor: 'pointer',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -600,17 +666,17 @@ export default function App() {
                     <Home size={13} /> Dashboard
                   </button>
                 )}
-                <button 
-                  onClick={handleLogout} 
-                  title="Sign Out" 
-                  style={{ 
+                <button
+                  onClick={handleLogout}
+                  title="Sign Out"
+                  style={{
                     flex: subTab !== 'dashboard' ? 'none' : 1,
-                    background: 'rgba(239,35,60,0.12)', 
-                    border: '1px solid rgba(239,35,60,0.25)', 
-                    color: '#ff6b6b', 
-                    cursor: 'pointer', 
-                    padding: '6px 10px', 
-                    borderRadius: '6px', 
+                    background: 'rgba(239,35,60,0.12)',
+                    border: '1px solid rgba(239,35,60,0.25)',
+                    color: '#ff6b6b',
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -629,15 +695,15 @@ export default function App() {
 
           {/* Main Content Workspace */}
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-main)' }}>
-            
+
             {/* Top Navbar Header */}
-            <header style={{ 
-              height: '56px', 
-              background: 'var(--bg-surface)', 
-              borderBottom: '1px solid var(--border-color)', 
-              padding: '0 24px', 
-              display: 'flex', 
-              alignItems: 'center', 
+            <header style={{
+              height: '56px',
+              background: 'var(--bg-surface)',
+              borderBottom: '1px solid var(--border-color)',
+              padding: '0 24px',
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'space-between',
               flexShrink: 0,
               position: 'relative',
@@ -645,7 +711,7 @@ export default function App() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 {isMobile && (
-                  <button 
+                  <button
                     onClick={() => setMenuOpen(prev => !prev)}
                     style={{
                       background: 'none',
@@ -664,12 +730,12 @@ export default function App() {
 
               {/* Search, Notifications, and Profile Controls */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                
+
                 {/* Role-Specific Search Field */}
                 <div ref={searchRef} style={{ position: 'relative', width: '240px' }}>
                   <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder={getSearchPlaceholder(user.role)}
                     value={searchQuery}
                     onFocus={() => setSearchFocused(true)}
@@ -689,7 +755,7 @@ export default function App() {
                     }}
                   />
                   {searchQuery && (
-                    <button 
+                    <button
                       onClick={() => setSearchQuery('')}
                       style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
                     >
@@ -725,7 +791,7 @@ export default function App() {
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           {searchResults.map((res, i) => (
-                            <div 
+                            <div
                               key={i}
                               onClick={() => {
                                 setSubTab(res.tab);
@@ -766,7 +832,7 @@ export default function App() {
 
                 {/* Notification Bell Dropdown */}
                 <div ref={notifRef} style={{ position: 'relative' }}>
-                  <button 
+                  <button
                     onClick={() => {
                       setNotificationsOpen(prev => !prev);
                       setProfileOpen(false);
@@ -784,13 +850,13 @@ export default function App() {
                   >
                     <Bell size={18} />
                     {unreadNotifCount > 0 && (
-                      <span style={{ 
-                        position: 'absolute', 
-                        top: '-4px', 
-                        right: '-4px', 
+                      <span style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
                         minWidth: '18px',
-                        height: '18px', 
-                        background: '#ef233c', 
+                        height: '18px',
+                        background: '#ef233c',
                         borderRadius: '10px',
                         border: '2px solid var(--bg-surface)',
                         fontSize: '0.62rem',
@@ -805,14 +871,12 @@ export default function App() {
                         {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                       </span>
                     )}
-                  </button>
-
-                  {notificationsOpen && (
+                  </button>                  {notificationsOpen && (
                     <div style={{
                       position: 'absolute',
                       top: '100%',
                       right: 0,
-                      width: '320px',
+                      width: '340px',
                       marginTop: '10px',
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-color)',
@@ -822,63 +886,110 @@ export default function App() {
                       overflow: 'hidden'
                     }}>
                       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <strong style={{ fontSize: '0.88rem' }}>Notifications</strong>
                           {unreadNotifCount > 0 && (
-                            <span className="badge badge-pending" style={{ marginLeft: '6px', fontSize: '0.68rem' }}>
+                            <span className="badge badge-pending" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
                               {unreadNotifCount} new
                             </span>
                           )}
                         </div>
-                        <button 
-                          onClick={() => setNotificationsRead(true)}
-                          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
-                        >
-                          Mark all read
-                        </button>
+                        {unreadNotifCount > 0 && (
+                          <button
+                            onClick={handleMarkAllRead}
+                            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            Mark all read
+                          </button>
+                        )}
                       </div>
 
-                      <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                        {notifications.map(n => (
-                          <div 
-                            key={n.id} 
-                            style={{ 
-                              padding: '10px 14px', 
-                              borderBottom: '1px solid var(--border-color)', 
-                              background: (!notificationsRead && n.unread) ? 'rgba(58,134,255,0.04)' : 'transparent',
-                              display: 'flex',
-                              gap: '10px',
-                              alignItems: 'flex-start'
-                            }}
-                          >
-                            <div style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              background: (!notificationsRead && n.unread) ? 'var(--primary)' : 'transparent',
-                              marginTop: '5px',
-                              flexShrink: 0
-                            }} />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                                {n.title}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                                {n.desc}
-                              </div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                {n.time}
-                              </div>
-                            </div>
+                      <div style={{ maxHeight: '340px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                        {notifications.length === 0 ? (
+                          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <CheckCircle2 size={30} color="#06d6a0" style={{ margin: '0 auto 8px', display: 'block' }} />
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>All caught up!</div>
+                            <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>No unread notifications</div>
                           </div>
-                        ))}
+                        ) : (
+                          notifications.map(n => (
+                            <div
+                              key={n.id}
+                              onClick={() => {
+                                if (n.category) {
+                                  setSubTab(n.category);
+                                  setNotificationsOpen(false);
+                                }
+                                handleMarkAsRead(n.id);
+                              }}
+                              style={{
+                                padding: '12px 14px',
+                                borderBottom: '1px solid var(--border-color)',
+                                background: 'rgba(239,35,60,0.02)',
+                                display: 'flex',
+                                gap: '10px',
+                                alignItems: 'flex-start',
+                                cursor: n.category ? 'pointer' : 'default',
+                                transition: 'background 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,35,60,0.06)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,35,60,0.02)'; }}
+                            >
+                              <div style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: n.type === 'warning' ? '#f59e0b' : n.type === 'success' ? '#06d6a0' : 'var(--primary)',
+                                marginTop: '5px',
+                                flexShrink: 0
+                              }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                                  {n.title}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                                  {n.desc}
+                                </div>
+                                {n.time && (
+                                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    {n.time}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkAsRead(n.id);
+                                }}
+                                title="Mark as read (dismiss)"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--text-muted)',
+                                  cursor: 'pointer',
+                                  padding: '4px',
+                                  borderRadius: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.color = '#06d6a0'; e.currentTarget.style.background = 'rgba(6,214,160,0.12)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none'; }}
+                              >
+                                <Check size={14} />
+                              </button>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Theme toggle */}
-                <button 
+                <button
                   onClick={toggleTheme}
                   style={{
                     background: 'none',
@@ -895,26 +1006,26 @@ export default function App() {
 
                 {/* User Avatar & Profile Dropdown */}
                 <div ref={profileRef} style={{ position: 'relative' }}>
-                  <button 
+                  <button
                     onClick={() => {
                       setProfileOpen(prev => !prev);
                       setNotificationsOpen(false);
                     }}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      cursor: 'pointer', 
-                      padding: 0, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px' 
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}
                   >
-                    <div style={{ 
-                      width: '32px', 
-                      height: '32px', 
-                      borderRadius: '50%', 
-                      background: 'var(--primary, #ef233c)', 
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: 'var(--primary, #ef233c)',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',

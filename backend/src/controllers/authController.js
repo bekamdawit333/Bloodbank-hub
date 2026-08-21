@@ -268,6 +268,21 @@ async function registerComplete(req, res) {
       },
     });
 
+    // Real-time broadcast for admin notifications
+    try {
+      const io = req.app.get('io');
+      if (io && role !== 'donor') {
+        io.emit('new_workstation_registered', {
+          id: newUser.id,
+          entity_name: finalEntityName,
+          role: newUser.role,
+          message: `New ${role.toUpperCase()} registration: ${finalEntityName} awaiting approval.`
+        });
+      }
+    } catch (e) {
+      console.warn('[Socket Broadcast Error]:', e.message);
+    }
+
     // If role is donor, set up donor profile in PostgreSQL
     if (role === "donor") {
       const finalFaydaId =
