@@ -224,8 +224,10 @@ async function createBloodSample(req, res) {
           date_time: { gte: new Date() }
         }
       });
+      // Walk-in donations are allowed: an appointment is optional. If one
+      // exists it will be marked completed after collection.
       if (!donorAppointment) {
-        return res.status(400).json({ error: 'This donor must have a scheduled appointment at this station before donating.' });
+        console.log(`[Station] Walk-in donation for donor ${donor.fayda_id} (no scheduled appointment).`);
       }
 
       const lab = await mainDb.user.findFirst({
@@ -287,7 +289,7 @@ async function createBloodSample(req, res) {
       data: {
         fayda_id: donor.fayda_id,
         blood_type: blood_type || donor.blood_type || 'O+',
-        status: donorAppointment ? 'pending_lab' : 'collected',
+        status: targetLabId ? 'pending_lab' : 'collected',
         station_id: targetStationId,
         lab_id: targetLabId,
         health_notes: health_notes || (screening_data ? JSON.stringify(screening_data) : null)
@@ -304,13 +306,18 @@ async function createBloodSample(req, res) {
         where: { id: donorAppointment.id, donor_id: donor.fayda_id, station_id: targetStationId, status: 'scheduled' },
         data: { status: 'completed' }
       });
+    }
 
+    // Notify the screening laboratory for every sample routed to it (scheduled or walk-in)
+    if (sample.status === 'pending_lab') {
       const io = req.app.get('io');
       if (io) {
         io.emit('notification', {
           recipientRole: 'laboratory',
           recipientId: targetLabId,
-          message: 'A scheduled donor sample is waiting for laboratory screening.'
+          message: donorAppointment
+            ? 'A scheduled donor sample is waiting for laboratory screening.'
+            : 'A walk-in donor sample is waiting for laboratory screening.'
         });
       }
     }

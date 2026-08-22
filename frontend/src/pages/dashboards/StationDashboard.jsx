@@ -912,11 +912,11 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                         Appointment: {new Date(donorAppointment.date_time).toLocaleString()}
                       </div>
                     ) : (
-                      <div style={{ marginTop: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#ef233c' }}>No upcoming appointment at this station. The donor must schedule one before collection.</div>
+                      <div style={{ marginTop: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#2563eb' }}>Walk-in donation — no appointment required.</div>
                     )}
                   </div>
 
-                  {donorAppointment && eligibility?.is_eligible ? (
+                  {eligibility?.is_eligible ? (
                     <>
                       {renderQuestionnaireForm()}
                       {renderVitalsForm()}
@@ -940,7 +940,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                     </>
                   ) : (
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                      Collection is blocked until the appointment and 90-day eligibility requirements are satisfied.
+                      Collection is blocked until the 90-day eligibility requirement is satisfied.
                     </div>
                   )}
                 </form>
