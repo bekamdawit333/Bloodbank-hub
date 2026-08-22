@@ -44,3 +44,6 @@ temp/
 # Ignore generated client code (each developer generates their own)
 backend/src/generated/
 **/generated/
+
+# Local compose env copy - contains real secrets
+compose.env
