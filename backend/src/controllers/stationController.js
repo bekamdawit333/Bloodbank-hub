@@ -280,8 +280,11 @@ async function createBloodSample(req, res) {
     if (targetStationId) {
       const stationExists = await mainDb.user.findUnique({ where: { id: targetStationId } });
       if (!stationExists) {
-        const defaultStation = await mainDb.user.findFirst({ where: { role: 'station' } });
-        targetStationId = defaultStation ? defaultStation.id : targetStationId;
+        const defaultStation = await mainDb.user.findFirst({ where: { role: 'station', status: 'approved' } });
+        if (!defaultStation) {
+          return res.status(400).json({ error: 'No registered donation station account exists to own this sample.' });
+        }
+        targetStationId = defaultStation.id;
       }
     }
 
@@ -583,8 +586,11 @@ async function registerAndCollect(req, res) {
     if (targetStationId) {
       const stationExists = await mainDb.user.findUnique({ where: { id: targetStationId } });
       if (!stationExists) {
-        const defaultStation = await mainDb.user.findFirst({ where: { role: 'station' } });
-        targetStationId = defaultStation ? defaultStation.id : targetStationId;
+        const defaultStation = await mainDb.user.findFirst({ where: { role: 'station', status: 'approved' } });
+        if (!defaultStation) {
+          return res.status(400).json({ error: 'No registered donation station account exists to own this sample.' });
+        }
+        targetStationId = defaultStation.id;
       }
     }
 
