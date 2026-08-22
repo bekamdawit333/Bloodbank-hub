@@ -1,0 +1,354 @@
+
+
+.register-container {
+  width: 100%;
+  margin: 40px auto;
+  padding: 40px 30px;
+  box-sizing: border-box;
+
+  border-radius: 16px;
+
+  /* Use CSS variables for proper dark/light mode support */
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+
+  animation: fadeIn 0.3s ease;
+}
+
+.register-container-small {
+  max-width: 440px;
+}
+
+.register-container-large {
+  max-width: 640px;
+}
+
+
+/* ---------------------------------------------------------
+   HEADER
+   --------------------------------------------------------- */
+
+.register-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.register-header h2 {
+  margin: 0 0 8px;
+  color: var(--primary);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.register-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+
+/* ---------------------------------------------------------
+   MESSAGES
+   --------------------------------------------------------- */
+
+.register-message {
+  padding: 12px;
+  margin-bottom: 20px;
+
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.register-error {
+  color: #ef233c;
+  background: rgba(239, 35, 60, 0.1);
+  border: 1px solid rgba(239, 35, 60, 0.2);
+}
+
+.register-success {
+  color: #06d6a0;
+  background: rgba(6, 214, 160, 0.1);
+  border: 1px solid rgba(6, 214, 160, 0.25);
+  font-weight: 600;
+}
+
+
+/* ---------------------------------------------------------
+   ROLE SELECTOR
+   --------------------------------------------------------- */
+
+.register-role-selector {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+
+  border-bottom: 1px solid var(--border-color);
+}
+
+
+/* ---------------------------------------------------------
+   LABELS
+   --------------------------------------------------------- */
+
+.register-label {
+  display: block;
+  margin-bottom: 8px;
+
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.register-small-label {
+  display: block;
+  margin-bottom: 6px;
+
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+
+/* ---------------------------------------------------------
+   INPUTS
+   --------------------------------------------------------- */
+
+.register-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--input-border) !important;
+}
+
+.register-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15) !important;
+}
+
+.fayda-filled-input {
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+}
+
+.register-input:read-only,
+.register-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+
+/* ---------------------------------------------------------
+   FORM LAYOUT
+   --------------------------------------------------------- */
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.staff-registration-form {
+  gap: 18px;
+}
+
+
+/* ---------------------------------------------------------
+   BUTTONS
+   --------------------------------------------------------- */
+
+.register-submit {
+  width: 100%;
+  justify-content: center;
+}
+
+.staff-submit {
+  margin-top: 10px;
+}
+
+.register-back-button {
+  width: 100%;
+  justify-content: center;
+
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+
+/* ---------------------------------------------------------
+   VERIFICATION CODE
+   --------------------------------------------------------- */
+
+.verification-code-input {
+  text-align: center;
+  font-size: 1.2rem;
+  letter-spacing: 8px;
+  font-family: monospace;
+}
+
+
+/* ---------------------------------------------------------
+   DONOR PROFILE
+   --------------------------------------------------------- */
+
+.donor-profile-form {
+  animation: fadeIn 0.3s ease;
+}
+
+.donor-demographics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  padding-top: 20px;
+
+  border-top: 1px solid var(--border-color);
+}
+
+.register-section-title {
+  margin: 0;
+
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+
+/* ---------------------------------------------------------
+   FAYDA
+   --------------------------------------------------------- */
+
+.fayda-section {
+  padding: 16px;
+
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.fayda-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.fayda-input {
+  flex: 1;
+}
+
+.fayda-search-button {
+  flex-shrink: 0;
+
+  padding: 0 16px;
+
+  color: #fff;
+  background: #3a86ff;
+  border-color: #3a86ff;
+
+  font-size: 0.8rem;
+}
+
+.fayda-success {
+  margin-top: 6px;
+
+  color: #06d6a0;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.fayda-error {
+  margin-top: 6px;
+
+  color: #ef233c;
+  font-size: 0.72rem;
+}
+
+
+/* ---------------------------------------------------------
+   TWO COLUMN FIELDS
+   --------------------------------------------------------- */
+
+.register-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+
+/* ---------------------------------------------------------
+   STAFF HELP TEXT
+   --------------------------------------------------------- */
+
+.register-help-text {
+  display: block;
+
+  margin-top: 6px;
+
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+
+/* ---------------------------------------------------------
+   FOOTER
+   --------------------------------------------------------- */
+
+.register-footer {
+  display: flex;
+  justify-content: center;
+
+  margin-top: 24px;
+  padding-top: 20px;
+
+  border-top: 1px solid var(--border-color);
+}
+
+.register-login-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 0;
+
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.register-login-link:hover {
+  color: var(--primary);
+}
+
+
+/* ---------------------------------------------------------
+   RESPONSIVE
+   --------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .register-container,
+  .register-container-small,
+  .register-container-large {
+    width: calc(100% - 24px);
+    margin: 20px auto;
+    padding: 30px 20px;
+  }
+
+  .register-two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .fayda-input-row {
+    flex-direction: column;
+  }
+
+  .fayda-search-button {
+    min-height: 42px;
+  }
+}
