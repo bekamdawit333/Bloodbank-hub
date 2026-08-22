@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User, ShieldCheck, Key, Mail, Building, Phone, MapPin, 
-  Award, Droplet, Calendar, CheckCircle2, Lock, ArrowLeft, RefreshCw, X, Eye, EyeOff
+import {
+  User, ShieldCheck, Key, Mail, Building, Phone, MapPin,
+  Award, Droplet, Calendar, CheckCircle2, Lock, ArrowLeft, RefreshCw, X, Eye, EyeOff, Trash2
 } from 'lucide-react';
 import { api } from '../../services/api';
 import BottomToast from './BottomToast';
@@ -20,6 +20,10 @@ export default function ProfileView({ user, setTab, onBack }) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Account deletion state
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -95,6 +99,37 @@ export default function ProfileView({ user, setTab, onBack }) {
       case 'warehouse': return 'Central Blood Bank Warehouse';
       case 'hospital': return 'Partner Healthcare Facility';
       default: return role?.toUpperCase() || 'User';
+    }
+  };
+
+  const activeRole = profileData.role || user?.role;
+  const deletionPending = profileData.status === 'deletion_requested';
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.auth.deleteAccount();
+      api.auth.logout();
+      window.location.href = '/';
+    } catch (err) {
+      setError(err.message || 'Failed to delete account.');
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
+  };
+
+  const handleRequestDeletion = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await api.auth.requestAccountDeletion();
+      setSuccess(res.message || 'Deletion request submitted for admin review.');
+      setProfileData((prev) => ({ ...prev, status: 'deletion_requested' }));
+    } catch (err) {
+      setError(err.message || 'Failed to submit deletion request.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -342,6 +377,62 @@ export default function ProfileView({ user, setTab, onBack }) {
         </div>
 
       </div>
+
+      {/* Danger Zone - Account Deletion (hidden for admins) */}
+      {activeRole !== 'admin' && (
+        <div
+          className="dashboard-card"
+          style={{ borderColor: 'rgba(239,35,60,0.4)', borderWidth: '1px', borderStyle: 'solid' }}
+        >
+          <div className="dashboard-header" style={{ marginBottom: '12px' }}>
+            <h2 style={{ color: '#ef233c', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Trash2 size={18} /> Danger Zone
+            </h2>
+            <p>Permanently remove your account from the Blood Bank Hub system.</p>
+          </div>
+
+          {deletionPending ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', padding: '14px 16px', borderRadius: '8px' }}>
+              <ShieldCheck size={18} color="#f59e0b" />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f59e0b' }}>Deletion request pending admin approval</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Your account will be permanently removed once an administrator approves this request.
+                </div>
+              </div>
+            </div>
+          ) : activeRole === 'donor' ? (
+            <>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
+                Donor accounts are deleted immediately without administrator approval. This action cannot be undone and you will lose access to your donation history and points.
+              </p>
+              {!confirmingDelete ? (
+                <button onClick={() => setConfirmingDelete(true)} className="btn btn-outline" disabled={deleting} style={{ color: '#ef233c', borderColor: '#ef233c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Trash2 size={15} /> Delete My Account
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button onClick={handleDeleteAccount} className="btn btn-primary" disabled={deleting} style={{ background: '#ef233c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Trash2 size={15} /> {deleting ? 'Deleting...' : 'Yes, Permanently Delete'}
+                  </button>
+                  <button onClick={() => setConfirmingDelete(false)} className="btn btn-outline" disabled={deleting}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
+                Workstation accounts ({getRoleLabel(activeRole)}) require administrator approval before deletion. Submitting a request will notify the system administrator, who will review and finalize the deletion.
+              </p>
+              <button onClick={handleRequestDeletion} className="btn btn-outline" disabled={deleting} style={{ color: '#ef233c', borderColor: '#ef233c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Trash2 size={15} /> {deleting ? 'Submitting...' : 'Request Account Deletion'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
     </div>
   );

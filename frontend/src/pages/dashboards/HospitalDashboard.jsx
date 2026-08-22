@@ -52,7 +52,7 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile 
         const found = stock?.find(s => s.blood_type === type);
         return {
           blood_type: type,
-          quantity: found ? found.quantity : (type === 'A+' ? 12 : type === 'B+' ? 18 : type === 'O+' ? 20 : type === 'AB+' ? 8 : type === 'O-' ? 6 : type === 'A-' ? 4 : type === 'B-' ? 3 : 1)
+          quantity: found ? found.quantity : 0
         };
       });
       setInternalStock(mappedStock);
@@ -255,24 +255,19 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile 
     }
   };
 
-  const totalLocalStock = internalStock.reduce((a, b) => a + (b.quantity || 0), 0) || 72;
-  const pendingRequestsCount = requisitions.filter(r => r.status === 'pending').length || 5;
+  const totalLocalStock = internalStock.reduce((a, b) => a + (b.quantity || 0), 0);
+  const pendingRequestsCount = requisitions.filter(r => r.status === 'pending').length;
+  const fulfilledTodayCount = requisitions.filter(r => {
+    if (r.status !== 'fulfilled' && r.status !== 'received') return false;
+    const ref = r.updated_at || r.created_at;
+    return ref ? new Date(ref).toDateString() === new Date().toDateString() : false;
+  }).length;
 
-  // Demo stock fallback
-  const displayLocalStock = internalStock.length > 0 ? internalStock.slice(0, 5) : [
-    { blood_type: 'A+', quantity: 12, status: 'Optimal' },
-    { blood_type: 'B+', quantity: 18, status: 'Optimal' },
-    { blood_type: 'O+', quantity: 20, status: 'Optimal' },
-    { blood_type: 'AB+', quantity: 8, status: 'Low' },
-    { blood_type: 'O-', quantity: 6, status: 'Low' }
-  ];
+  // Real data only — no demo fallbacks
+  const displayLocalStock = internalStock.slice(0, 5);
 
-  // Demo requests fallback
-  const displayRecentRequests = requisitions.length > 0 ? requisitions.slice(0, 3) : [
-    { id: 'REQ-2025-120', blood_type: 'O+', units_needed: 10, status: 'pending' },
-    { id: 'REQ-2025-119', blood_type: 'AB-', units_needed: 5, status: 'approved' },
-    { id: 'REQ-2025-118', blood_type: 'B+', units_needed: 8, status: 'in transit' }
-  ];
+  // Real data only — no demo fallbacks
+  const displayRecentRequests = requisitions.slice(0, 3);
 
   return (
     <div className="dashboard-container">
@@ -352,8 +347,8 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile 
                   <CheckCircle2 size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">3</div>
-              <div className="stat-card-trend trend-up">
+              <div className="stat-card-value">{fulfilledTodayCount}</div>
+              <div className="stat-card-trend trend-neutral">
                 <span>Requests</span>
               </div>
             </div>
@@ -366,9 +361,9 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile 
                   <Users size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{hmsPatients.length > 0 ? hmsPatients.length : '24'}</div>
-              <div className="stat-card-trend trend-up">
-                <span>This month</span>
+              <div className="stat-card-value">{hmsPatients.length}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>Registered</span>
               </div>
             </div>
 
@@ -385,7 +380,9 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile 
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayLocalStock.map(item => (
+                {displayLocalStock.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No local stock recorded yet.</p>
+                ) : displayLocalStock.map(item => (
                   <div key={item.blood_type} className="clean-list-item">
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
                       {item.blood_type}
@@ -416,14 +413,16 @@ export default function HospitalDashboard({ tab = 'dashboard', setTab, isMobile 
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayRecentRequests.map(req => (
+                {displayRecentRequests.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No requests submitted yet.</p>
+                ) : displayRecentRequests.map(req => (
                   <div key={req.id} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
                         {req.id}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {req.blood_type} - {req.units_needed || 5} units
+                        {req.blood_type} - {req.units_needed || 0} units
                       </div>
                     </div>
                     <span className={`badge badge-${req.status === 'approved' || req.status === 'fulfilled' ? 'approved' : req.status === 'in transit' ? 'collected' : 'pending'}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>

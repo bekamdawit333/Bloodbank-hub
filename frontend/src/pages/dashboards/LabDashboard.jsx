@@ -107,7 +107,8 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
 
   useEffect(() => {
     loadData();
-    if (tab === 'records') loadRecords();
+    // Records power the overview stat cards and donut chart, so always load them
+    loadRecords();
     if (tab === 'points') loadPoints();
     if (tab === 'inventory') loadInventory();
     if (tab === 'reports') loadReports();
@@ -169,23 +170,17 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
     }
   };
 
-  // Demo pending samples fallback
-  const displayPending = samples.length > 0 ? samples.slice(0, 5) : [
-    { id: 'SMP-2025-001', donor_name: 'Tesfaye Girma', blood_type: 'A+', station_name: 'Addis Station' },
-    { id: 'SMP-2025-002', donor_name: 'Melaku Alemu', blood_type: 'O+', station_name: 'Hawassa Station' },
-    { id: 'SMP-2025-003', donor_name: 'Abdi Hassan', blood_type: 'B+', station_name: 'Mekelle Station' },
-    { id: 'SMP-2025-004', donor_name: 'Sara Bekele', blood_type: 'AB+', station_name: 'Gondar Station' },
-    { id: 'SMP-2025-005', donor_name: 'Lydia Assefa', blood_type: 'O-', station_name: 'Addis Station' }
-  ];
+  // Real data only — no demo fallbacks
+  const displayPending = samples.slice(0, 5);
 
-  // Demo recent lab records fallback
-  const displayRecords = [
-    { id: 'LR-2025-045', result: 'Negative', status: 'Approved', type: 'O+' },
-    { id: 'LR-2025-044', result: 'Negative', status: 'Approved', type: 'A+' },
-    { id: 'LR-2025-043', result: 'Positive', status: 'Discarded', type: 'B-' },
-    { id: 'LR-2025-042', result: 'Negative', status: 'Approved', type: 'AB+' },
-    { id: 'LR-2025-041', result: 'Negative', status: 'Approved', type: 'O+' }
-  ];
+  // Real lab records only — no demo fallback
+  const displayRecords = records.slice(0, 5);
+
+  const processedCount = records.length;
+  const negativeCount = records.filter(r => (r.result || '').toLowerCase() === 'negative').length;
+  const positiveCount = processedCount - negativeCount;
+  const negativePct = processedCount > 0 ? ((negativeCount / processedCount) * 100).toFixed(1) : '0.0';
+  const positivePct = processedCount > 0 ? ((positiveCount / processedCount) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="dashboard-container">
@@ -220,9 +215,9 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <FlaskConical size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{samples.length > 0 ? samples.length : '15'}</div>
+              <div className="stat-card-value">{samples.length}</div>
               <div className="stat-card-trend trend-neutral">
-                <span>+3 new</span>
+                <span>Awaiting screening</span>
               </div>
             </div>
 
@@ -234,9 +229,9 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <CheckCircle2 size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">45</div>
-              <div className="stat-card-trend trend-up">
-                <span>Today</span>
+              <div className="stat-card-value">{processedCount}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>Total processed</span>
               </div>
             </div>
 
@@ -248,9 +243,9 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <ShieldCheck size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">40</div>
-              <div className="stat-card-trend trend-up">
-                <span>88.9%</span>
+              <div className="stat-card-value">{negativeCount}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>{negativePct}% of tested</span>
               </div>
             </div>
 
@@ -262,9 +257,9 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <AlertCircle size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">5</div>
-              <div className="stat-card-trend trend-down">
-                <span>11.1%</span>
+              <div className="stat-card-value">{positiveCount}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>{positivePct}% of tested</span>
               </div>
             </div>
 
@@ -281,7 +276,9 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayPending.map((item, idx) => (
+                {displayPending.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No pending samples in the queue.</p>
+                ) : displayPending.map((item, idx) => (
                   <div key={item.id || idx} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
@@ -312,45 +309,54 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                 <span>Lab Results Summary</span>
               </div>
 
-              {/* Responsive SVG Donut Chart */}
-              <div style={{ position: 'relative', width: '140px', height: '140px', margin: '8px 0' }}>
-                <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
-                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
-                  
-                  {/* Negative (88.9%) - Green */}
-                  <circle 
-                    cx="50" cy="50" r="38" 
-                    fill="transparent" 
-                    stroke="#06d6a0" 
-                    strokeWidth="12" 
-                    strokeDasharray="212.2 238.7" 
-                    strokeDashoffset="0" 
-                  />
-                  {/* Positive (11.1%) - Red */}
-                  <circle 
-                    cx="50" cy="50" r="38" 
-                    fill="transparent" 
-                    stroke="#ef233c" 
-                    strokeWidth="12" 
-                    strokeDasharray="26.5 238.7" 
-                    strokeDashoffset="-212.2" 
-                  />
-                </svg>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>45</span>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Tested</span>
+              {/* Responsive SVG Donut Chart — computed from real lab records */}
+              {processedCount === 0 ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center' }}>
+                    No samples tested yet. Results will appear here after screening.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <>
+                <div style={{ position: 'relative', width: '140px', height: '140px', margin: '8px 0' }}>
+                  <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
+                    <circle cx="50" cy="50" r="38" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
+                    {/* Negative share - Green */}
+                    <circle
+                      cx="50" cy="50" r="38"
+                      fill="transparent"
+                      stroke="#06d6a0"
+                      strokeWidth="12"
+                      strokeDasharray={`${(negativeCount / processedCount) * 238.7} 238.7`}
+                      strokeDashoffset="0"
+                    />
+                    {/* Positive share - Red */}
+                    <circle
+                      cx="50" cy="50" r="38"
+                      fill="transparent"
+                      stroke="#ef233c"
+                      strokeWidth="12"
+                      strokeDasharray={`${(positiveCount / processedCount) * 238.7} 238.7`}
+                      strokeDashoffset={`${-(negativeCount / processedCount) * 238.7}`}
+                    />
+                  </svg>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{processedCount}</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Tested</span>
+                  </div>
+                </div>
 
-              {/* Legend */}
-              <div style={{ display: 'flex', gap: '14px', fontSize: '0.72rem', marginTop: '6px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06d6a0' }} /> Negative: 40 (88.9%)
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef233c' }} /> Positive: 5 (11.1%)
-                </span>
-              </div>
+                {/* Legend */}
+                <div style={{ display: 'flex', gap: '14px', fontSize: '0.72rem', marginTop: '6px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06d6a0' }} /> Negative: {negativeCount} ({negativePct}%)
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef233c' }} /> Positive: {positiveCount} ({positivePct}%)
+                  </span>
+                </div>
+                </>
+              )}
             </div>
 
             {/* Card 3: Recent Lab Records */}
@@ -361,7 +367,9 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayRecords.map(rec => (
+                {displayRecords.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No lab records yet.</p>
+                ) : displayRecords.map(rec => (
                   <div key={rec.id} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
@@ -684,11 +692,13 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                 </tr>
               </thead>
               <tbody>
-                {(pointsList.length > 0 ? pointsList : [
-                  { donor_name: 'Tesfaye Girma', fayda_id: 'FAY-88219', id: 'SMP-2025-001', result: 'Healthy / Approved', points_awarded: 100, date: '2025-08-20' },
-                  { donor_name: 'Melaku Alemu', fayda_id: 'FAY-91823', id: 'SMP-2025-002', result: 'Healthy / Approved', points_awarded: 100, date: '2025-08-19' },
-                  { donor_name: 'Sara Bekele', fayda_id: 'FAY-44712', id: 'SMP-2025-004', result: 'Healthy / Approved', points_awarded: 100, date: '2025-08-18' }
-                ]).map((p, idx) => (
+                {pointsList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px' }}>
+                      No donor points awarded yet.
+                    </td>
+                  </tr>
+                ) : pointsList.map((p, idx) => (
                   <tr key={idx}>
                     <td data-label="Donor Patient" style={{ fontWeight: 600 }}>{p.donor_name}</td>
                     <td data-label="FAYDA ID" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{p.fayda_id}</td>
@@ -730,8 +740,8 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <FlaskConical size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{reportsData?.total_samples || 45}</div>
-              <div className="stat-card-trend trend-up"><span>All time</span></div>
+              <div className="stat-card-value">{reportsData?.total_samples || 0}</div>
+              <div className="stat-card-trend trend-neutral"><span>All time</span></div>
             </div>
 
             <div className="stat-card">
@@ -741,8 +751,8 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <CheckCircle2 size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{reportsData?.negative_results || 40}</div>
-              <div className="stat-card-trend trend-up"><span>{reportsData?.negative_rate || '88.9'}% pass rate</span></div>
+              <div className="stat-card-value">{reportsData?.negative_results || 0}</div>
+              <div className="stat-card-trend trend-neutral"><span>{reportsData?.negative_rate || '0.0'}% pass rate</span></div>
             </div>
 
             <div className="stat-card">
@@ -752,8 +762,8 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                   <Trash2 size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{reportsData?.positive_results || 5}</div>
-              <div className="stat-card-trend trend-down"><span>{reportsData?.positive_rate || '11.1'}% defect rate</span></div>
+              <div className="stat-card-value">{reportsData?.positive_results || 0}</div>
+              <div className="stat-card-trend trend-neutral"><span>{reportsData?.positive_rate || '0.0'}% defect rate</span></div>
             </div>
 
             <div className="stat-card">
@@ -777,8 +787,7 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px' }}>
               {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(type => {
-                const count = reportsData?.blood_type_distribution?.[type] || 
-                  (type === 'O+' ? 15 : type === 'A+' ? 10 : type === 'B+' ? 8 : type === 'AB+' ? 4 : type === 'O-' ? 3 : 1);
+                const count = reportsData?.blood_type_distribution?.[type] || 0;
                 return (
                   <div key={type} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#7c3aed' }}>{type}</div>
@@ -818,11 +827,13 @@ export default function LabDashboard({ tab = 'dashboard', setTab, isMobile }) {
                 </tr>
               </thead>
               <tbody>
-                {(inventoryOut.length > 0 ? inventoryOut : [
-                  { id: 'SMP-2025-001', blood_type: 'A+', quantity: 1, destination: 'Central Regional Warehouse', status: 'Validated & Sent to Warehouse', date: '2025-08-20' },
-                  { id: 'SMP-2025-002', blood_type: 'O+', quantity: 1, destination: 'Central Regional Warehouse', status: 'Validated & Sent to Warehouse', date: '2025-08-19' },
-                  { id: 'SMP-2025-004', blood_type: 'AB+', quantity: 1, destination: 'Central Regional Warehouse', status: 'Validated & Sent to Warehouse', date: '2025-08-18' }
-                ]).map((item, idx) => (
+                {inventoryOut.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px' }}>
+                      No validated units dispatched to a warehouse yet.
+                    </td>
+                  </tr>
+                ) : inventoryOut.map((item, idx) => (
                   <tr key={idx}>
                     <td data-label="Sample / Bag ID" style={{ fontWeight: 600 }}>{item.id}</td>
                     <td data-label="Tested Blood Type">

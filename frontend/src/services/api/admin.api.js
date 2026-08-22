@@ -52,4 +52,18 @@ export const adminApi = {
     });
     return handleResponse(response);
   },
+  deleteUser: async (userId) => {
+    const response = await fetch(`${BASE_URL}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  approveDeletionRequest: async (userId) => {
+    const response = await fetch(`${BASE_URL}/admin/users/${userId}/delete-request/approve`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
 };

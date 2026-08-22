@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { mainDb } = require("../config/prisma");
+const { logAction } = require("../utils/audit");
 const { JWT_SECRET } = require("../middleware/auth");
 
 // Security: verification codes must never appear in logs or API responses.
@@ -630,8 +631,7 @@ async function resetPasswordDonor(req, res) {
 }
 
 // 9. Change Password (Authenticated for all actors)
-async function changePassword(req, res) {
-  const { currentPassword, newPassword } = req.body;
+async function changePassword(req, res) {  const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: "Current password and new password are required." });
   }
@@ -663,6 +663,99 @@ async function changePassword(req, res) {
   }
 }
 
+// 10. Donor deletes own account immediately; other roles must request admin approval
+async function deleteOwnAccount(req, res) {
+  try {
+    const user = await mainDb.user.findUnique({ where: { id: req.user.id } });
+    if (!user) {
+      return res.status(404).json({ error: "User account not found." });
+    }
+
+    if (user.role === "admin") {
+      return res
+        .status(403)
+        .json({ error: "Administrator accounts cannot be deleted." });
+    }
+
+    if (user.role !== "donor") {
+      return res.status(400).json({
+        error:
+          "Workstation accounts require administrator approval for deletion. Submit a deletion request instead.",
+        requiresApproval: true,
+      });
+    }
+
+    await mainDb.user.delete({ where: { id: user.id } });
+
+    await logAction(
+      null,
+      "ACCOUNT_SELF_DELETED",
+      `Donor account ${user.email} was deleted by its owner.`
+    );
+
+    res.json({
+      message: "Your account has been deleted successfully.",
+    });
+  } catch (err) {
+    console.error("[authController] deleteOwnAccount error:", err);
+    res.status(500).json({ error: "Server error during account deletion." });
+  }
+}
+
+// 11. Workstation accounts request deletion (needs admin approval)
+async function requestAccountDeletion(req, res) {
+  try {
+    const user = await mainDb.user.findUnique({ where: { id: req.user.id } });
+    if (!user) {
+      return res.status(404).json({ error: "User account not found." });
+    }
+
+    if (user.role === "admin") {
+      return res
+        .status(403)
+        .json({ error: "Administrator accounts cannot be deleted." });
+    }
+
+    if (user.role === "donor") {
+      return res.status(400).json({
+        error:
+          "Donor accounts are deleted immediately without approval. Use the delete option directly.",
+      });
+    }
+
+    if (user.status === "deletion_requested") {
+      return res
+        .status(400)
+        .json({ error: "A deletion request is already pending review." });
+    }
+
+    if (user.status !== "approved") {
+      return res.status(400).json({
+        error: `Only approved accounts can request deletion. Current status: ${user.status}.`,
+      });
+    }
+
+    await mainDb.user.update({
+      where: { id: user.id },
+      data: { status: "deletion_requested" },
+    });
+
+    await logAction(
+      user.id,
+      "ACCOUNT_DELETION_REQUESTED",
+      `${user.role} account ${user.email} (${user.entity_name}) requested account deletion.`
+    );
+
+    res.json({
+      message:
+        "Deletion request submitted. An administrator will review and finalize the deletion of your account.",
+    });
+  } catch (err) {
+    console.error("[authController] requestAccountDeletion error:", err);
+    res.status(500).json({ error: "Server error during deletion request." });
+  }
+}
+
 module.exports = {
   registerVerifyEmail,
   verifyCode,
@@ -673,4 +766,6 @@ module.exports = {
   forgotPassword,
   resetPasswordDonor,
   changePassword,
+  deleteOwnAccount,
+  requestAccountDeletion,
 };

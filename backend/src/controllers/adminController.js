@@ -27,16 +27,20 @@ async function getUsers(req, res) {
   }
 }
 
-// Approve/Reject system user registration
+// Approve/Reject system user registration, or finalize an approved deletion request
 async function updateUserStatus(req, res) {
   const { id } = req.params;
-  const { status } = req.body; // 'approved' or 'rejected'
+  const { status } = req.body; // 'approved', 'rejected', or 'deleted'
 
-  if (!['approved', 'rejected'].includes(status)) {
+  if (!['approved', 'rejected', 'deleted'].includes(status)) {
     return res.status(400).json({ error: 'Invalid registration status option' });
   }
 
   try {
+    if (status === 'deleted') {
+      return await deleteUserInternal(req, res);
+    }
+
     const user = await mainDb.user.update({
       where: { id },
       data: { status }
@@ -61,6 +65,75 @@ async function updateUserStatus(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update user registration status' });
+  }
+}
+
+// Permanently remove a user account (admin initiated or approved request)
+async function deleteUserInternal(req, res) {
+  const { id } = req.params;
+
+  const target = await mainDb.user.findUnique({ where: { id } });
+  if (!target) {
+    res.status(404).json({ error: 'User not found' });
+    return null;
+  }
+
+  if (target.role === 'admin') {
+    res.status(403).json({ error: 'Administrator accounts cannot be deleted.' });
+    return null;
+  }
+
+  // Preserve the audit trail: this entry is logged under the admin's id,
+  // because cascade will remove logs owned by the deleted user.
+  await logAction(
+    req.user.id,
+    'ACCOUNT_DELETED',
+    `Admin ${req.user.email} deleted ${target.role} account ${target.email} (${target.entity_name}). Status prior to deletion: ${target.status}.`
+  );
+
+  await mainDb.user.delete({ where: { id } });
+
+  return target;
+}
+
+// Admin directly deletes any non-admin account
+async function deleteUser(req, res) {
+  try {
+    const { id } = req.params;
+    const target = await deleteUserInternal(req, res);
+    if (!target) return; // response already sent
+
+    res.json({
+      message: `Account ${target.email} (${target.role}) has been permanently deleted.`
+    });
+  } catch (err) {
+    console.error('[adminController] deleteUser error:', err);
+    res.status(500).json({ error: 'Failed to delete user account.' });
+  }
+}
+
+// Admin approves a workstation deletion request -> permanent delete
+async function approveDeletionRequest(req, res) {
+  try {
+    const { id } = req.params;
+    const target = await mainDb.user.findUnique({ where: { id } });
+
+    if (!target) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    if (target.status !== 'deletion_requested') {
+      return res.status(400).json({ error: 'This account has no pending deletion request.' });
+    }
+
+    const deleted = await deleteUserInternal(req, res);
+    if (!deleted) return;
+
+    res.json({
+      message: `Deletion approved. Account ${target.email} (${target.role}) has been permanently removed.`
+    });
+  } catch (err) {
+    console.error('[adminController] approveDeletionRequest error:', err);
+    res.status(500).json({ error: 'Failed to approve deletion request.' });
   }
 }
 
@@ -110,9 +183,15 @@ async function getAdminAnalytics(req, res) {
     stationCollectionsData.sort((a, b) => b.total_samples - a.total_samples);
 
     // 3. Overall KPI aggregations
-    const totalDonors = await mainDb.donor.count();
+    // Only donors with a registered (linked) account count here - raw FAYDA
+    // registry profiles without an account do not appear in the Users directory.
+    const totalDonors = await mainDb.donor.count({
+      where: { user_id: { not: null } }
+    });
+    // Approved workstations only (admins excluded) so this matches what the
+    // admin sees under the Users registry.
     const totalWorkstations = await mainDb.user.count({
-      where: { role: { not: 'donor' } }
+      where: { role: { notIn: ['donor', 'admin'] }, status: 'approved' }
     });
     const stockAgg = await mainDb.warehouseStock.aggregate({
       _sum: { quantity: true }
@@ -291,4 +370,6 @@ module.exports = {
   getAuditLogs,
   getPasswordResetRequests,
   resolvePasswordResetRequest,
+  deleteUser,
+  approveDeletionRequest,
 };

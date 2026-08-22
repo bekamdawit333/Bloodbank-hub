@@ -44,7 +44,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
         const found = stockLevels?.find(s => s.blood_type === type);
         return {
           blood_type: type,
-          quantity: found ? found.quantity : (type === 'O+' ? 850 : type === 'A+' ? 620 : type === 'B+' ? 540 : type === 'AB+' ? 210 : type === 'O-' ? 190 : type === 'A-' ? 140 : type === 'B-' ? 110 : 86)
+          quantity: found ? found.quantity : 0
         };
       });
       setStock(mappedStock);
@@ -219,15 +219,13 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
     }
   };
 
-  const totalStockUnits = stock.reduce((acc, curr) => acc + (curr.quantity || 0), 0) || 3256;
-  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length || 8;
+  const totalStockUnits = stock.reduce((acc, curr) => acc + (curr.quantity || 0), 0);
+  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
+  const lowStockCount = stock.filter(s => s.quantity <= 20).length;
+  const incomingUnits = incomingStock.reduce((acc, curr) => acc + (curr.quantity || 1), 0);
 
-  // Demo recent dispatches fallback
-  const displayDispatches = requests.length > 0 ? requests.slice(0, 3) : [
-    { id: 'REQ-2025-120', hospital_name: 'Black Lion Hospital', blood_type: 'O+', units_needed: 10, status: 'dispatched' },
-    { id: 'REQ-2025-119', hospital_name: 'Tikur Anbessa Hospital', blood_type: 'A+', units_needed: 5, status: 'dispatched' },
-    { id: 'REQ-2025-118', hospital_name: 'Zewditu Memorial', blood_type: 'B+', units_needed: 8, status: 'dispatched' }
-  ];
+  // Real data only — no demo fallbacks
+  const displayDispatches = requests.slice(0, 3);
 
   return (
     <div className="dashboard-container">
@@ -274,8 +272,8 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
                 </div>
               </div>
               <div className="stat-card-value">{totalStockUnits.toLocaleString()}</div>
-              <div className="stat-card-trend trend-down">
-                <span>-2% vs yesterday</span>
+              <div className="stat-card-trend trend-neutral">
+                <span>Units in storage</span>
               </div>
             </div>
 
@@ -287,9 +285,9 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
                   <AlertTriangle size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">6</div>
+              <div className="stat-card-value">{lowStockCount}</div>
               <div className="stat-card-trend trend-neutral" style={{ color: '#f59e0b' }}>
-                <span>Requires attention</span>
+                <span>Types at 20 units or fewer</span>
               </div>
             </div>
 
@@ -301,9 +299,9 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
                   <Truck size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">120</div>
-              <div className="stat-card-trend trend-up">
-                <span>Today</span>
+              <div className="stat-card-value">{incomingUnits}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>Awaiting intake</span>
               </div>
             </div>
 
@@ -382,7 +380,9 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayDispatches.map(item => (
+                {displayDispatches.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No hospital dispatches recorded yet.</p>
+                ) : displayDispatches.map(item => (
                   <div key={item.id} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
@@ -393,7 +393,7 @@ export default function WarehouseDashboard({ tab = 'dashboard', setTab, isMobile
                       </div>
                     </div>
                     <span style={{ background: 'rgba(5,150,105,0.1)', color: '#059669', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>
-                      {item.units_needed || 10} units ({item.blood_type})
+                      {item.units_needed || 0} units ({item.blood_type})
                     </span>
                   </div>
                 ))}

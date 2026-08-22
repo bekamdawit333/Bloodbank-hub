@@ -382,14 +382,27 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
     }
   };
 
-  // Demo recent check-ins fallback
-  const displayCheckins = [
-    { id: 1, name: 'Melaku Alemu', time: '9:30 AM', status: 'Completed' },
-    { id: 2, name: 'Tesfaye Girma', time: '9:45 AM', status: 'Completed' },
-    { id: 3, name: 'Sara Bekele', time: '10:00 AM', status: 'Completed' },
-    { id: 4, name: 'Abdi Hassan', time: '10:15 AM', status: 'Completed' },
-    { id: 5, name: 'Lydia Assefa', time: '10:30 AM', status: 'Completed' }
-  ];
+  // Real recent collections derived from this station's samples — no demo data
+  const displayCheckins = samples.slice(0, 5).map(s => ({
+    id: s.id,
+    name: s.donor_name || 'Unknown Donor',
+    time: s.collected_at ? new Date(s.collected_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
+    status: s.status === 'collected' ? 'Collected' : (s.status === 'routed_to_lab' ? 'Routed to Lab' : (s.status || 'Completed'))
+  }));
+
+  const todayKey = new Date().toDateString();
+  const todayCheckins = samples.filter(s => s.collected_at && new Date(s.collected_at).toDateString() === todayKey).length;
+  // Samples still held at the station awaiting laboratory screening
+  const pendingLabCount = samples.filter(s => s.status === 'collected').length;
+  const monthKey = new Date().getMonth();
+  const donorsThisMonth = new Set(
+    samples
+      .filter(s => s.collected_at && new Date(s.collected_at).getMonth() === monthKey)
+      .map(s => s.fayda_id || s.donor_name)
+  ).size;
+  const collectedCount = samples.filter(s => s.status === 'collected').length;
+  const totalBags = samples.length;
+  const routedCount = totalBags - collectedCount;
 
   const renderQuestionnaireForm = () => (
     <div style={{ background: 'var(--bg-main)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '10px' }}>
@@ -473,9 +486,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <UserCheck size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">32</div>
-              <div className="stat-card-trend trend-up">
-                <span>+8 vs yesterday</span>
+              <div className="stat-card-value">{todayCheckins}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>Today</span>
               </div>
             </div>
 
@@ -487,9 +500,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <Droplet size={18} fill="#f59e0b" />
                 </div>
               </div>
-              <div className="stat-card-value">{samples.length > 0 ? samples.length : '28'}</div>
-              <div className="stat-card-trend trend-up">
-                <span>+5 vs yesterday</span>
+              <div className="stat-card-value">{samples.length}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>Total collected</span>
               </div>
             </div>
 
@@ -501,9 +514,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <Clock size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">15</div>
+              <div className="stat-card-value">{pendingLabCount}</div>
               <div className="stat-card-trend trend-neutral">
-                <span>+3 vs yesterday</span>
+                <span>Awaiting screening</span>
               </div>
             </div>
 
@@ -515,9 +528,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <Users size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">412</div>
-              <div className="stat-card-trend trend-up">
-                <span>+25 vs last month</span>
+              <div className="stat-card-value">{donorsThisMonth}</div>
+              <div className="stat-card-trend trend-neutral">
+                <span>Unique donors</span>
               </div>
             </div>
 
@@ -534,7 +547,9 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayCheckins.map(item => (
+                {displayCheckins.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No collections logged yet today.</p>
+                ) : displayCheckins.map(item => (
                   <div key={item.id} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
@@ -565,7 +580,15 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                 <span>Sample Collection Status</span>
               </div>
 
-              {/* Responsive SVG Donut Chart */}
+              {/* Responsive SVG Donut Chart — computed from real sample statuses */}
+              {totalBags === 0 ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center' }}>
+                    No samples collected yet. Status breakdown will appear here.
+                  </p>
+                </div>
+              ) : (
+                <>
               <div style={{ position: 'relative', width: '140px', height: '140px', margin: '8px 0' }}>
                 <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                   {/* Background Circle */}
@@ -575,22 +598,22 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                     stroke="var(--border-color)"
                     strokeWidth="4"
                   />
-                  {/* Segment 1: Collected (65%) */}
+                  {/* Segment 1: Collected (awaiting lab) */}
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
                     stroke="#2563eb"
                     strokeWidth="4"
-                    strokeDasharray="65, 100"
+                    strokeDasharray={`${(collectedCount / totalBags) * 100}, 100`}
                   />
-                  {/* Segment 2: Pending (25%) */}
+                  {/* Segment 2: Routed to Lab */}
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
                     stroke="#f59e0b"
                     strokeWidth="4"
-                    strokeDasharray="25, 100"
-                    strokeDashoffset="-65"
+                    strokeDasharray={`${(routedCount / totalBags) * 100}, 100`}
+                    strokeDashoffset={`${-(collectedCount / totalBags) * 100}`}
                   />
                 </svg>
                 {/* Center Percentage */}
@@ -605,7 +628,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>48</span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{totalBags}</span>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bags</span>
                 </div>
               </div>
@@ -613,12 +636,14 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
               {/* Legend */}
               <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2563eb' }} /> Collected: 28 (65%)
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2563eb' }} /> Awaiting Lab: {collectedCount} ({Math.round((collectedCount / totalBags) * 100)}%)
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Pending: 15 (25%)
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Routed: {routedCount} ({Math.round((routedCount / totalBags) * 100)}%)
                 </span>
               </div>
+                </>
+              )}
             </div>
 
             {/* Card 3: Quick Actions */}
@@ -1139,7 +1164,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <Clock size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{reportsData?.pending_lab || 15}</div>
+              <div className="stat-card-value">{reportsData?.pending_lab ?? pendingLabCount}</div>
               <div className="stat-card-trend trend-neutral"><span>In queue</span></div>
             </div>
 
@@ -1150,8 +1175,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <CheckCircle2 size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">{reportsData?.validated || 24}</div>
-              <div className="stat-card-trend trend-up"><span>Approved</span></div>
+              <div className="stat-card-value">{reportsData?.validated || 0}</div>
+              <div className="stat-card-trend trend-neutral"><span>Approved</span></div>
             </div>
 
             <div className="stat-card">
@@ -1161,8 +1186,8 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
                   <UserCheck size={18} />
                 </div>
               </div>
-              <div className="stat-card-value">32</div>
-              <div className="stat-card-trend trend-up"><span>Active today</span></div>
+              <div className="stat-card-value">{todayCheckins}</div>
+              <div className="stat-card-trend trend-neutral"><span>Active today</span></div>
             </div>
           </div>
 
@@ -1175,7 +1200,7 @@ export default function StationDashboard({ tab = 'dashboard', setTab, isMobile }
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px' }}>
               {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(type => {
-                const count = reportsData?.blood_type_distribution?.[type] || 
+                const count = reportsData?.blood_type_distribution?.[type] ??
                   samples.filter(s => s.blood_type === type).length;
                 return (
                   <div key={type} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>

@@ -5,6 +5,8 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 
 router.get('/users', authenticateToken, requireRole(['admin']), adminController.getUsers);
 router.post('/users/:id/status', authenticateToken, requireRole(['admin']), adminController.updateUserStatus);
+router.delete('/users/:id', authenticateToken, requireRole(['admin']), adminController.deleteUser);
+router.post('/users/:id/delete-request/approve', authenticateToken, requireRole(['admin']), adminController.approveDeletionRequest);
 router.get('/analytics', authenticateToken, requireRole(['admin']), adminController.getAdminAnalytics);
 router.post('/reminders/trigger', authenticateToken, requireRole(['admin']), adminController.triggerThreeMonthReminders);
 router.get('/audit-logs', authenticateToken, requireRole(['admin']), adminController.getAuditLogs);

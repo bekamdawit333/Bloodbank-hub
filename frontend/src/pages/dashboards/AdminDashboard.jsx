@@ -59,9 +59,46 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
       await api.admin.updateUserStatus(userId, newStatus);
       const usersData = await api.admin.getUsers();
       setUsers(usersData || []);
-      setSuccessMsg(`Workstation registration successfully marked as ${newStatus}.`);
+      const messages = {
+        approved: 'Account restored and marked as approved.',
+        rejected: 'Workstation registration rejected.',
+        deleted: 'Account permanently deleted.'
+      };
+      setSuccessMsg(messages[newStatus] || `Workstation registration successfully marked as ${newStatus}.`);
     } catch (err) {
       setError(err.message || 'Failed to update user status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Permanently delete this account? This action cannot be undone.')) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.admin.deleteUser(userId);
+      const usersData = await api.admin.getUsers();
+      setUsers(usersData || []);
+      setSuccessMsg(res.message || 'Account permanently deleted.');
+    } catch (err) {
+      setError(err.message || 'Failed to delete account.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveDeletionRequest = async (userId) => {
+    if (!window.confirm('Approve this deletion request? The account will be permanently removed.')) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.admin.approveDeletionRequest(userId);
+      const usersData = await api.admin.getUsers();
+      setUsers(usersData || []);
+      setSuccessMsg(res.message || 'Deletion request approved. Account removed.');
+    } catch (err) {
+      setError(err.message || 'Failed to approve deletion request.');
     } finally {
       setLoading(false);
     }
@@ -104,33 +141,28 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
     }
   };
 
-  const filteredWorkstationUsers = users.filter(u => u.role !== 'donor').filter(u => {
+  // Workstations waiting on an admin decision (pending / rejected / deletion requested)
+  // live under the Approvals queue. Approved workstations graduate into the
+  // Users registry below.
+  const workstationQueue = users.filter(u => u.role !== 'donor' && u.status !== 'approved');
+  const filteredWorkstationUsers = workstationQueue.filter(u => {
     if (registryCategory === 'all') return true;
     if (registryCategory === 'laboratory') return u.role === 'laboratory';
     if (registryCategory === 'station') return u.role === 'station';
     return u.role !== 'laboratory' && u.role !== 'station';
   });
 
-  const pendingUsers = users.filter(u => u.status === 'pending' && u.role !== 'donor');
+  // Users registry = active members: donors (auto-approved) + approved workstations.
+  const registeredUsers = users.filter(u => u.status === 'approved' || u.role === 'donor');
 
-  // Fallback demo registrations if none in DB — only non-donor workstations
-  const displayRegistrations = users.filter(u => u.role !== 'donor').length > 0
-    ? users.filter(u => u.role !== 'donor').slice(0, 4)
-    : [
-      { id: 1, entity_name: 'Addis Ababa Station', role: 'station', status: 'pending' },
-      { id: 2, entity_name: 'Hawassa Laboratory', role: 'laboratory', status: 'pending' },
-      { id: 3, entity_name: 'Mekelle Warehouse', role: 'warehouse', status: 'pending' },
-      { id: 4, entity_name: 'Gondar Hospital', role: 'hospital', status: 'pending' }
-    ];
+  const pendingUsers = workstationQueue.filter(u => u.status === 'pending');
 
-  // Fallback demo logs if none in DB
-  const displayLogs = auditLogs.length > 0 ? auditLogs.slice(0, 5) : [
-    { id: 1, action: 'User login - admin', details: 'Admin logged in', time: '2 min ago' },
-    { id: 2, action: 'Stock updated - B+', details: '20 units added', time: '15 min ago' },
-    { id: 3, action: 'Password reset resolved', details: 'Hawassa Lab reset', time: '1 hour ago' },
-    { id: 4, action: 'Hospital request fulfilled', details: '10 units dispatched', time: '2 hours ago' },
-    { id: 5, action: 'Workstation approved', details: 'Addis Station verified', time: '5 hours ago' }
-  ];
+  const statusPriority = s => (s === 'pending' ? 0 : s === 'deletion_requested' ? 1 : s === 'rejected' ? 2 : 3);
+  const workstationRegistrations = users
+    .filter(u => u.role !== 'donor')
+    .sort((a, b) => statusPriority(a.status) - statusPriority(b.status))
+    .slice(0, 4);
+  const recentLogs = auditLogs.slice(0, 5);
 
   return (
     <div className="dashboard-container">
@@ -166,7 +198,7 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                 </div>
               </div>
               <div className="stat-card-value">
-                {analytics?.totalWorkstations || users.filter(u => u.role !== 'donor').length || '4'}
+                {analytics?.totalWorkstations ?? users.filter(u => u.role !== 'donor' && u.status === 'approved').length ?? 0}
               </div>
               <div className="stat-card-trend trend-up">
                 <TrendingUp size={13} />
@@ -183,8 +215,7 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                 </div>
               </div>
               <div className="stat-card-value">
-                {analytics?.totalDonors || users.filter(u => u.role === 'donor').length || '100'}
-              </div>
+                {analytics?.totalDonors ?? users.filter(u => u.role === 'donor').length ?? 0}              </div>
               <div className="stat-card-trend trend-up">
                 <TrendingUp size={13} />
                 <span>FAYDA verified</span>
@@ -200,7 +231,7 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                 </div>
               </div>
               <div className="stat-card-value">
-                {analytics?.totalStock?.toLocaleString() || '1,445'}
+                {(analytics?.totalStock ?? 0).toLocaleString()}
               </div>
               <div className="stat-card-trend trend-up">
                 <TrendingUp size={13} />
@@ -237,7 +268,9 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayRegistrations.map((item, idx) => (
+                {workstationRegistrations.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No workstation registrations yet.</p>
+                ) : workstationRegistrations.map((item, idx) => (
                   <div key={item.id || idx} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
@@ -254,11 +287,11 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                 ))}
               </div>
 
-              <button 
-                onClick={() => setTab('users')} 
+              <button
+                onClick={() => setTab('approvals')}
                 className="view-all-btn"
               >
-                View All Registrations <ArrowRight size={13} />
+                View Workstation Approvals <ArrowRight size={13} />
               </button>
             </div>
 
@@ -276,43 +309,57 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                 </div>
               </div>
 
-              {/* Responsive SVG Chart */}
-              <div style={{ flex: 1, minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg viewBox="0 0 300 120" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                  {/* Grid lines */}
-                  <line x1="0" y1="20" x2="300" y2="20" stroke="var(--border-color)" strokeDasharray="3 3" />
-                  <line x1="0" y1="55" x2="300" y2="55" stroke="var(--border-color)" strokeDasharray="3 3" />
-                  <line x1="0" y1="90" x2="300" y2="90" stroke="var(--border-color)" strokeDasharray="3 3" />
-                  
-                  {/* Donations line (Red) */}
-                  <polyline
-                    fill="none"
-                    stroke="#ef233c"
-                    strokeWidth="2.5"
-                    points="10,80 55,70 100,50 145,60 190,30 235,45 280,25"
-                  />
-                  {/* Requests line (Blue) */}
-                  <polyline
-                    fill="none"
-                    stroke="#3a86ff"
-                    strokeWidth="2"
-                    strokeDasharray="4 2"
-                    points="10,95 55,85 100,70 145,75 190,55 235,60 280,40"
-                  />
-
-                  {/* Nodes */}
-                  <circle cx="280" cy="25" r="4" fill="#ef233c" />
-                  <circle cx="280" cy="40" r="4" fill="#3a86ff" />
-
-                  {/* X Axis Labels */}
-                  <text x="10" y="112" fontSize="9" fill="var(--text-muted)">Jan</text>
-                  <text x="55" y="112" fontSize="9" fill="var(--text-muted)">Feb</text>
-                  <text x="100" y="112" fontSize="9" fill="var(--text-muted)">Mar</text>
-                  <text x="145" y="112" fontSize="9" fill="var(--text-muted)">Apr</text>
-                  <text x="190" y="112" fontSize="9" fill="var(--text-muted)">May</text>
-                  <text x="235" y="112" fontSize="9" fill="var(--text-muted)">Jun</text>
-                  <text x="280" y="112" fontSize="9" fill="var(--text-muted)">Jul</text>
-                </svg>
+              {/* Real analytics: collections per station vs requests per hospital */}
+              <div style={{ flex: 1, minHeight: '140px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '14px' }}>
+                {(() => {
+                  const donations = (analytics?.stationCollections || []).slice(0, 4);
+                  const requests = (analytics?.hospitalRequests || []).slice(0, 4);
+                  const maxD = Math.max(1, ...donations.map(d => d.total_samples));
+                  const maxR = Math.max(1, ...requests.map(r => r.total_units));
+                  if (donations.length === 0 && requests.length === 0) {
+                    return (
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center' }}>
+                        No donation or request activity recorded yet.
+                      </p>
+                    );
+                  }
+                  return (
+                    <>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>Collections by Station</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {donations.length === 0 ? (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No samples collected yet.</span>
+                          ) : donations.map(d => (
+                            <div key={d.station_name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem' }}>
+                              <span style={{ width: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{d.station_name}</span>
+                              <div style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${(d.total_samples / maxD) * 100}%`, height: '100%', background: '#ef233c', borderRadius: '4px' }} />
+                              </div>
+                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{d.total_samples}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>Requests by Hospital</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {requests.length === 0 ? (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No hospital requests yet.</span>
+                          ) : requests.map(r => (
+                            <div key={r.hospital_name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem' }}>
+                              <span style={{ width: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{r.hospital_name}</span>
+                              <div style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${(r.total_units / maxR) * 100}%`, height: '100%', background: '#3a86ff', borderRadius: '4px' }} />
+                              </div>
+                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.total_units}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               <button 
@@ -331,7 +378,9 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayLogs.map((log, idx) => (
+                {recentLogs.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No audit activity recorded yet.</p>
+                ) : recentLogs.map((log, idx) => (
                   <div key={log.id || idx} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
@@ -361,12 +410,12 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
         </div>
       )}
 
-      {/* WORKSTATION APPROVALS — only non-donors needing admin approval */}
+      {/* WORKSTATION APPROVALS — non-donor workstations awaiting admin action */}
       {tab === 'approvals' && (
         <div className="dashboard-card animate-fade-in">
           <div className="dashboard-header" style={{ marginBottom: '16px' }}>
             <h2>Pending Workstation Authorizations</h2>
-            <p>Hospitals, labs, stations, and warehouses must receive administrative approval before they can log in. Donors do not require approval.</p>
+            <p>Workstations waiting for approval appear here. Once approved, they move to the Registered Users directory. Donors do not require approval.</p>
           </div>
 
           {/* Interactive Actor Switcher Tabs */}
@@ -375,19 +424,18 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
               const isActive = registryCategory === cat;
               let label = '';
               let count = 0;
-              const nonDonors = users.filter(u => u.role !== 'donor');
               if (cat === 'all') {
-                label = 'All Workstations';
-                count = nonDonors.length;
+                label = 'Awaiting Approval';
+                count = workstationQueue.length;
               } else if (cat === 'laboratory') {
                 label = 'Laboratory';
-                count = users.filter(u => u.role === 'laboratory').length;
+                count = workstationQueue.filter(u => u.role === 'laboratory').length;
               } else if (cat === 'station') {
                 label = 'Donation Stations';
-                count = users.filter(u => u.role === 'station').length;
+                count = workstationQueue.filter(u => u.role === 'station').length;
               } else {
                 label = 'Hospitals & Warehouses';
-                count = users.filter(u => u.role === 'hospital' || u.role === 'warehouse').length;
+                count = workstationQueue.filter(u => u.role === 'hospital' || u.role === 'warehouse').length;
               }
 
               return (
@@ -427,7 +475,7 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
           {loading && users.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>Loading registries...</p>
           ) : filteredWorkstationUsers.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', margin: '20px 0' }}>No workstation registrations found in this category.</p>
+            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', margin: '20px 0' }}>No workstations awaiting approval in this category.</p>
           ) : (
             <div className="table-container">
               <table>
@@ -451,31 +499,63 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                       </td>
                       <td data-label="Facility Name" style={{ color: 'var(--text-secondary)' }}>{u.entity_name}</td>
                       <td data-label="Approval Status">
-                        <span className={`badge badge-${u.status}`}>
-                          {u.status}
+                        <span className={`badge badge-${u.status === 'deletion_requested' ? 'pending' : u.status}`}>
+                          {u.status === 'deletion_requested' ? 'deletion requested' : (u.status || 'pending')}
                         </span>
                       </td>
                       <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                          {u.status !== 'approved' && (
-                            <button 
-                              onClick={() => handleStatusUpdate(u.id, 'approved')}
-                              className="btn btn-primary"
-                              style={{ padding: '5px 10px', fontSize: '0.72rem', background: '#06d6a0', borderColor: '#06d6a0' }}
-                              disabled={loading}
-                            >
-                              <ShieldCheck size={12} /> Approve
-                            </button>
-                          )}
-                          {u.status !== 'rejected' && (
-                            <button 
-                              onClick={() => handleStatusUpdate(u.id, 'rejected')}
-                              className="btn"
-                              style={{ padding: '5px 10px', fontSize: '0.72rem', background: 'rgba(239,35,60,0.1)', color: '#ef233c', border: '1px solid rgba(239,35,60,0.2)' }}
-                              disabled={loading}
-                            >
-                              <ShieldAlert size={12} /> Reject
-                            </button>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          {u.status === 'deletion_requested' ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveDeletionRequest(u.id)}
+                                className="btn btn-primary"
+                                style={{ padding: '5px 10px', fontSize: '0.72rem', background: '#ef233c', borderColor: '#ef233c' }}
+                                disabled={loading}
+                              >
+                                <ShieldAlert size={12} /> Confirm Deletion
+                              </button>
+                              <button
+                                onClick={() => handleStatusUpdate(u.id, 'approved')}
+                                className="btn"
+                                style={{ padding: '5px 10px', fontSize: '0.72rem', background: 'rgba(6,214,160,0.1)', color: '#06d6a0', border: '1px solid rgba(6,214,160,0.2)' }}
+                                disabled={loading}
+                              >
+                                <ShieldCheck size={12} /> Reject Request & Restore
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {u.status !== 'approved' && (
+                                <button 
+                                  onClick={() => handleStatusUpdate(u.id, 'approved')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '5px 10px', fontSize: '0.72rem', background: '#06d6a0', borderColor: '#06d6a0' }}
+                                  disabled={loading}
+                                >
+                                  <ShieldCheck size={12} /> Approve
+                                </button>
+                              )}
+                              {u.status !== 'rejected' && (
+                                <button 
+                                  onClick={() => handleStatusUpdate(u.id, 'rejected')}
+                                  className="btn"
+                                  style={{ padding: '5px 10px', fontSize: '0.72rem', background: 'rgba(239,35,60,0.1)', color: '#ef233c', border: '1px solid rgba(239,35,60,0.2)' }}
+                                  disabled={loading}
+                                >
+                                  <ShieldAlert size={12} /> Reject
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteUser(u.id)}
+                                className="btn"
+                                style={{ padding: '5px 10px', fontSize: '0.72rem', background: 'rgba(239,35,60,0.1)', color: '#ef233c', border: '1px solid rgba(239,35,60,0.2)' }}
+                                disabled={loading}
+                                title="Permanently delete this account"
+                              >
+                                <X size={12} /> Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -488,19 +568,19 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
         </div>
       )}
 
-      {/* USERS REGISTRY — all users including donors (read-only information) */}
+      {/* USERS REGISTRY — active members only: approved workstations + auto-approved donors */}
       {tab === 'users' && (
         <div className="dashboard-card animate-fade-in">
           <div className="dashboard-header" style={{ marginBottom: '16px' }}>
             <h2>Registered Users Directory</h2>
-            <p>All registered accounts in the system — workstations and donors. Donors are auto-approved upon registration.</p>
+            <p>Approved accounts only. Workstations appear here after approval; pending registrations stay under Workstation Approvals. Donors are auto-approved upon registration.</p>
           </div>
 
           {/* User category filter */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
             {['all', 'donor', 'station', 'laboratory', 'hospital', 'warehouse'].map(cat => {
               const isActive = registryCategory === cat;
-              const count = cat === 'all' ? users.length : users.filter(u => u.role === cat).length;
+              const count = cat === 'all' ? registeredUsers.length : registeredUsers.filter(u => u.role === cat).length;
               const labels = { all: 'All Users', donor: 'Donors', station: 'Stations', laboratory: 'Laboratories', hospital: 'Hospitals', warehouse: 'Warehouses' };
               return (
                 <button
@@ -532,6 +612,8 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
 
           {loading && users.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>Loading users...</p>
+          ) : (registryCategory === 'all' ? registeredUsers : registeredUsers.filter(u => u.role === registryCategory)).length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', margin: '20px 0' }}>No approved users in this category yet.</p>
           ) : (
             <div className="table-container">
               <table>
@@ -542,10 +624,11 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                     <th>Name / Entity</th>
                     <th>Status</th>
                     <th>Joined</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(registryCategory === 'all' ? users : users.filter(u => u.role === registryCategory)).map(u => (
+                  {(registryCategory === 'all' ? registeredUsers : registeredUsers.filter(u => u.role === registryCategory)).map(u => (
                     <tr key={u.id}>
                       <td style={{ fontWeight: 600 }}>{u.email}</td>
                       <td>
@@ -555,12 +638,45 @@ export default function AdminDashboard({ tab = 'dashboard', setTab, isMobile }) 
                       </td>
                       <td style={{ color: 'var(--text-secondary)' }}>{u.entity_name || u.donor?.name || '—'}</td>
                       <td>
-                        <span className={`badge badge-${u.role === 'donor' ? 'approved' : (u.status || 'pending')}`}>
-                          {u.role === 'donor' ? 'active' : (u.status || 'pending')}
+                        <span className={`badge badge-${u.role === 'donor' ? (u.status === 'deletion_requested' ? 'pending' : 'approved') : (u.status === 'deletion_requested' ? 'pending' : (u.status || 'pending'))}`}>
+                          {u.status === 'deletion_requested' ? 'deletion requested' : (u.role === 'donor' && u.status !== 'deletion_requested' ? 'active' : (u.status || 'pending'))}
                         </span>
                       </td>
                       <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                         {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td data-label="Actions" className="cell-actions" style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          {u.status === 'deletion_requested' && (
+                            <>
+                              <button
+                                onClick={() => handleApproveDeletionRequest(u.id)}
+                                className="btn btn-primary"
+                                style={{ padding: '5px 10px', fontSize: '0.72rem', background: '#ef233c', borderColor: '#ef233c' }}
+                                disabled={loading}
+                              >
+                                Confirm Deletion
+                              </button>
+                              <button
+                                onClick={() => handleStatusUpdate(u.id, 'approved')}
+                                className="btn"
+                                style={{ padding: '5px 10px', fontSize: '0.72rem', background: 'rgba(6,214,160,0.1)', color: '#06d6a0', border: '1px solid rgba(6,214,160,0.2)' }}
+                                disabled={loading}
+                              >
+                                Reject & Restore
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="btn"
+                            style={{ padding: '5px 10px', fontSize: '0.72rem', background: 'rgba(239,35,60,0.1)', color: '#ef233c', border: '1px solid rgba(239,35,60,0.2)' }}
+                            disabled={loading}
+                            title="Permanently delete this account"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

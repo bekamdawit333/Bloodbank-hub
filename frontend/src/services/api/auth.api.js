@@ -91,4 +91,18 @@ export const authApi = {
     });
     return handleResponse(response);
   },
+  deleteAccount: async () => {
+    const response = await fetch(`${BASE_URL}/auth/account`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+  requestAccountDeletion: async () => {
+    const response = await fetch(`${BASE_URL}/auth/account/delete-request`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
 };

@@ -112,15 +112,11 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
   const leaderboard = data?.leaderboard || [];
   const announcements = data?.announcements || [];
 
-  // Demo campaigns fallback
-  const displayCampaigns = announcements.length > 0 ? announcements.slice(0, 3) : [
-    { id: 1, title: 'Addis Ababa Mega Drive', date: '20 Aug 2025', location: 'Meskel Square' },
-    { id: 2, title: 'University Blood Drive', date: '28 Aug 2025', location: 'AAU Campus' },
-    { id: 3, title: 'Community Donation', date: '05 Sep 2025', location: 'Lideta Center' }
-  ];
+  // Real announcements only — no demo fallback
+  const displayCampaigns = announcements.slice(0, 3);
 
-  // Demo history fallback
-  const displayHistory = history.length > 0 ? history.slice(0, 3) : [];
+  // Real history only — no demo fallback
+  const displayHistory = history.slice(0, 3);
 
   const totalDonations = history.length;
   const livesSaved = totalDonations * 3;
@@ -156,8 +152,8 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
                 </div>
               </div>
               <div className="stat-card-value">{donor.points != null ? donor.points.toLocaleString() : '—'}</div>
-              <div className="stat-card-trend trend-up">
-                <span>+50 this month</span>
+              <div className="stat-card-trend trend-neutral">
+                <span>Loyalty balance</span>
               </div>
             </div>
 
@@ -170,8 +166,8 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
                 </div>
               </div>
               <div className="stat-card-value">{totalDonations != null ? totalDonations.toLocaleString() : '—'}</div>
-              <div className="stat-card-trend trend-up">
-                <span>+1 this month</span>
+              <div className="stat-card-trend trend-neutral">
+                <span>Lifetime donations</span>
               </div>
             </div>
 
@@ -220,7 +216,9 @@ export default function DonorDashboard({ activeTab = 'dashboard', setActiveTab }
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                {displayCampaigns.map((camp, idx) => (
+                {displayCampaigns.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No upcoming campaigns announced yet.</p>
+                ) : displayCampaigns.map((camp, idx) => (
                   <div key={camp.id || idx} className="clean-list-item">
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
