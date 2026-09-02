@@ -27,7 +27,7 @@ jest.mock('../src/config/prisma', () => ({ mainDb: mockMainDb, labDb: mockLabDb 
 jest.mock('../src/shared/services/audit.service', () => ({
   logAction: jest.fn().mockResolvedValue(undefined),
 }));
-// Pull the mocked reference AFTER the mock is registered.
+
 const { logAction: mockLogAction } = require('../src/shared/services/audit.service');
 
 // ─── Import controller AFTER mocks ──────────────────────────────────────────
